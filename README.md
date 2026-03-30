@@ -163,19 +163,19 @@ docker run -d -p 5000:5000 netease-music-api
 #### 基本语法
 
 ```bash
-python cli.py <command> [arguments] [options]
+uv run python cli.py <command> [arguments] [options]
 ```
 
 #### 可用命令
 
 | 命令 | 功能 | 示例 |
 |------|------|------|
-| `health` | 健康检查 | `python cli.py health` |
-| `song` | 获取歌曲信息 | `python cli.py song 185668` |
-| `search` | 搜索音乐 | `python cli.py search "周杰伦"` |
-| `playlist` | 获取歌单详情 | `python cli.py playlist 123456` |
-| `album` | 获取专辑详情 | `python cli.py album 123456` |
-| `download` | 下载音乐 | `python cli.py download 185668` |
+| `health` | 健康检查 | `uv run python cli.py health` |
+| `song` | 获取歌曲信息 | `uv run python cli.py song 185668` |
+| `search` | 搜索音乐 | `uv run python cli.py search "周杰伦"` |
+| `playlist` | 获取歌单详情 | `uv run python cli.py playlist 123456` |
+| `album` | 获取专辑详情 | `uv run python cli.py album 123456` |
+| `download` | 下载音乐 | `uv run python cli.py download 185668` |
 
 #### 全局选项
 
@@ -191,55 +191,55 @@ python cli.py <command> [arguments] [options]
 ##### 1. 健康检查
 ```bash
 # 默认JSON输出
-python cli.py health
+uv run python cli.py health
 
 # 人类可读输出
-python cli.py --output human health
+uv run python cli.py --output human health
 ```
 
 ##### 2. 获取歌曲信息
 ```bash
 # 获取歌曲URL（默认无损音质）
-python cli.py song 185668
+uv run python cli.py song 185668
 
 # 获取歌曲详情
-python cli.py song 185668 --type name
+uv run python cli.py song 185668 --type name
 
 # 获取歌词
-python cli.py song 185668 --type lyric
+uv run python cli.py song 185668 --type lyric
 
 # 获取完整信息
-python cli.py song 185668 --type json
+uv run python cli.py song 185668 --type json
 
 # 指定音质
-python cli.py song 185668 --level hires
+uv run python cli.py song 185668 --level hires
 
 # 支持URL输入
-python cli.py song "https://music.163.com/song?id=185668"
+uv run python cli.py song "https://music.163.com/song?id=185668"
 ```
 
 ##### 3. 搜索音乐
 ```bash
 # 搜索歌曲（默认返回30条）
-python cli.py search "周杰伦 稻香"
+uv run python cli.py search "周杰伦 稻香"
 
 # 限制返回数量
-python cli.py search "周杰伦" --limit 10
+uv run python cli.py search "周杰伦" --limit 10
 
 # 人类可读输出
-python cli.py --output human search "周杰伦"
+uv run python cli.py --output human search "周杰伦"
 ```
 
 ##### 4. 下载音乐
 ```bash
 # 下载到本地（默认无损音质）
-python cli.py download 185668
+uv run python cli.py download 185668
 
 # 仅获取下载信息（不下载文件）
-python cli.py download 185668 --format json
+uv run python cli.py download 185668 --format json
 
 # 指定音质下载
-python cli.py download 185668 --quality hires
+uv run python cli.py download 185668 --quality hires
 ```
 
 #### 退出码说明
@@ -263,7 +263,7 @@ python cli.py download 185668 --quality hires
 SONG_IDS=(185668 186016 186017)
 
 for id in "${SONG_IDS[@]}"; do
-    result=$(python cli.py download "$id" --quality lossless)
+    result=$(uv run python cli.py download "$id" --quality lossless)
     success=$(echo "$result" | jq -r '.success')
 
     if [ "$success" = "true" ]; then
@@ -284,7 +284,7 @@ import json
 
 def download_song(song_id, quality='lossless'):
     """调用CLI下载歌曲"""
-    cmd = ['python', 'cli.py', 'download', song_id, '--quality', quality]
+    cmd = ['uv', 'run', 'python', 'cli.py', 'download', song_id, '--quality', quality]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
     data = json.loads(result.stdout)
