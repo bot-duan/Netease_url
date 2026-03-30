@@ -4,8 +4,8 @@
 echo "=== 网易云音乐CLI功能测试 ==="
 echo ""
 
-# 使用conda环境的Python
-PYTHON="/Users/duan/mambaforge/envs/netease/bin/python"
+# 使用uv运行Python
+PYTHON="uv run python"
 
 # 测试计数器
 TOTAL=0

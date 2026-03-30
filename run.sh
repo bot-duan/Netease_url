@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 网易云音乐API一键启动脚本
+# 网易云音乐API一键启动脚本（使用uv）
 
 # 颜色输出
 RED='\033[0;31m'
@@ -14,42 +14,36 @@ cd "$SCRIPT_DIR"
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}   网易云音乐API服务启动脚本${NC}"
+echo -e "${GREEN}   (使用uv管理依赖)${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
-# 检查conda是否安装
-if ! command -v conda &> /dev/null; then
-    echo -e "${RED}错误: 未找到conda命令${NC}"
-    echo "请确保已安装Anaconda或Miniconda"
+# 检查uv是否安装
+if ! command -v uv &> /dev/null; then
+    echo -e "${RED}错误: 未找到uv命令${NC}"
+    echo "请安装uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
 fi
 
-# 检查环境是否存在
-if conda env list | grep -q "^netease "; then
-    echo -e "${GREEN}✓${NC} 找到conda环境: netease"
-else
-    echo -e "${YELLOW}⚠${NC} 未找到conda环境 'netease'"
-    echo "正在创建环境..."
-    conda create -n netease python=3.9 -y
-    echo -e "${GREEN}✓${NC} 环境创建完成"
+echo -e "${GREEN}✓${NC} 找到uv: $(uv --version)"
+
+# 检查pyproject.toml是否存在
+if [ ! -f "pyproject.toml" ]; then
+    echo -e "${RED}错误: 未找到pyproject.toml文件${NC}"
+    echo "请在项目根目录下运行此脚本"
+    exit 1
 fi
 
-# 检查依赖是否安装
+# 检查虚拟环境
 echo ""
-echo "检查项目依赖..."
-
-if [ ! -f "requirements.txt" ]; then
-    echo -e "${RED}错误: 未找到requirements.txt文件${NC}"
-    exit 1
+echo "检查虚拟环境..."
+if [ ! -d ".venv" ]; then
+    echo -e "${YELLOW}⚠${NC} 虚拟环境不存在，正在创建..."
+    uv sync
+    echo -e "${GREEN}✓${NC} 虚拟环境创建完成"
+else
+    echo -e "${GREEN}✓${NC} 虚拟环境已存在"
 fi
-
-# 使用conda run检查依赖
-echo "正在检查Python依赖..."
-conda run -n netease python -c "import flask" 2>/dev/null || {
-    echo -e "${YELLOW}⚠${NC} 依赖未完整安装，正在安装..."
-    conda run -n netease pip install -r requirements.txt
-    echo -e "${GREEN}✓${NC} 依赖安装完成"
-}
 
 # 检查Cookie文件
 echo ""
@@ -71,6 +65,5 @@ echo -e "${GREEN}   正在启动服务...${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
-# 使用conda run --no-capture-output启动，实时显示所有输出
-# 不使用exec，让脚本正常等待子进程结束
-conda run --no-capture-output -n netease python main.py
+# 使用uv run启动服务
+uv run python main.py

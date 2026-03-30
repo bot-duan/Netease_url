@@ -57,34 +57,55 @@
 ## 🚀 快速开始
 
 ### 环境要求
-- Python 3.7+
+- Python 3.10+
 - 网易云音乐黑胶会员账号
+- uv（推荐的Python包管理器）
 
 ### 安装步骤
 
 #### 1. 克隆项目
 ```bash
-git clone https://github.com/Suxiaoqinx/Netease_url.git
+git clone https://github.com/bot-duan/Netease_url.git
 cd Netease_url
 ```
 
-#### 2. 安装依赖
+#### 2. 安装uv（如果未安装）
 ```bash
-pip install -r requirements.txt
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 或使用Homebrew
+brew install uv
+
+# 验证安装
+uv --version
 ```
 
-#### 3. 配置Cookie
+#### 3. 安装项目依赖
+```bash
+# uv会自动创建虚拟环境并安装所有依赖
+uv sync
+```
+
+#### 4. 配置Cookie
 在 `cookie.txt` 文件中填入黑胶会员账号的Cookie：
 
 > 💡 **获取Cookie方法**：登录网易云音乐网页版 → F12开发者工具 → Network标签页 → 复制任意请求的Cookie值
 
-#### 4. 启动服务
+#### 5. 启动服务
 ```bash
-python main.py
+# 使用uv运行
+uv run python main.py
+
+# 或使用启动脚本
+chmod +x run.sh
+./run.sh
 ```
 
-#### 5. 访问界面
-打开浏览器访问：`http://localhost:5000`
+服务将运行在 `http://localhost:5023`
+
+#### 6. 访问界面
+打开浏览器访问：`http://localhost:5023`
 
 ### 🐳 Docker部署
 

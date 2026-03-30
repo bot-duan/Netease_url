@@ -45,3 +45,6 @@ Thumbs.db
 *.tmp
 *.swp
 *~
+
+# uv Python版本指示符（本地环境）
+.python-version
