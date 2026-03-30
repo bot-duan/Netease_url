@@ -2,6 +2,9 @@
 .idea
 .vscode
 
+# Claude Code配置（包含用户权限设置）
+.claude/
+
 # Python虚拟环境
 venv
 .venv
