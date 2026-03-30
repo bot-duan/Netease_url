@@ -29,20 +29,36 @@
 
 ### 环境要求
 
-- Python 3.7+
+- Python 3.10+
+- uv（Python包管理器）
 - 网易云音乐账号（推荐黑胶会员）
+
+### 安装uv
+
+如果尚未安装uv，请执行以下命令：
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 或使用Homebrew
+brew install uv
+
+# 验证安装
+uv --version
+```
 
 ### 基本语法
 
 ```bash
-python cli.py <command> [arguments] [options]
+uv run uv run python cli.py <command> [arguments] [options]
 ```
 
 ### 第一个命令
 
 ```bash
 # 检查服务状态
-python cli.py health
+uv run uv run python cli.py health
 
 # 输出示例：
 {
@@ -62,11 +78,11 @@ python cli.py health
 
 ```bash
 # 查看所有命令
-python cli.py --help
+uv run uv run python cli.py --help
 
 # 查看特定命令的帮助
-python cli.py song --help
-python cli.py download --help
+uv run uv run python cli.py song --help
+uv run uv run python cli.py download --help
 ```
 
 ---
@@ -80,20 +96,20 @@ python cli.py download --help
 #### 语法
 
 ```bash
-python cli.py health
+uv run python cli.py health
 ```
 
 #### 示例
 
 ```bash
 # JSON格式（默认）
-python cli.py health
+uv run python cli.py health
 
 # 人类可读格式
-python cli.py --output human health
+uv run python cli.py --output human health
 
 # 静默模式
-python cli.py --quiet health
+uv run python cli.py --quiet health
 ```
 
 #### 返回字段说明
@@ -114,7 +130,7 @@ python cli.py --quiet health
 #### 语法
 
 ```bash
-python cli.py song <歌曲ID或URL> [options]
+uv run python cli.py song <歌曲ID或URL> [options]
 ```
 
 #### 参数
@@ -135,7 +151,7 @@ python cli.py song <歌曲ID或URL> [options]
 ##### 1. 获取歌曲URL（默认）
 
 ```bash
-python cli.py song 185668
+uv run python cli.py song 185668
 ```
 
 **返回：**
@@ -158,7 +174,7 @@ python cli.py song 185668
 ##### 2. 获取歌曲详情
 
 ```bash
-python cli.py song 185668 --type name
+uv run python cli.py song 185668 --type name
 ```
 
 **返回：**
@@ -183,25 +199,25 @@ python cli.py song 185668 --type name
 ##### 3. 获取歌词
 
 ```bash
-python cli.py song 185668 --type lyric
+uv run python cli.py song 185668 --type lyric
 ```
 
 ##### 4. 获取完整信息
 
 ```bash
-python cli.py song 185668 --type json
+uv run python cli.py song 185668 --type json
 ```
 
 ##### 5. 指定音质
 
 ```bash
-python cli.py song 185668 --level hires
+uv run python cli.py song 185668 --level hires
 ```
 
 ##### 6. 使用URL输入
 
 ```bash
-python cli.py song "https://music.163.com/song?id=185668"
+uv run python cli.py song "https://music.163.com/song?id=185668"
 ```
 
 ---
@@ -213,7 +229,7 @@ python cli.py song "https://music.163.com/song?id=185668"
 #### 语法
 
 ```bash
-python cli.py search <关键词> [options]
+uv run python cli.py search <关键词> [options]
 ```
 
 #### 参数
@@ -241,19 +257,19 @@ python cli.py search <关键词> [options]
 ##### 1. 基本搜索
 
 ```bash
-python cli.py search "周杰伦"
+uv run python cli.py search "周杰伦"
 ```
 
 ##### 2. 限制返回数量
 
 ```bash
-python cli.py search "周杰伦" --limit 10
+uv run python cli.py search "周杰伦" --limit 10
 ```
 
 ##### 3. 人类可读输出
 
 ```bash
-python cli.py --output human search "周杰伦" --limit 5
+uv run python cli.py --output human search "周杰伦" --limit 5
 ```
 
 **输出示例：**
@@ -280,7 +296,7 @@ result:
 ##### 4. 搜索专辑
 
 ```bash
-python cli.py search "周杰伦" --type 10 --limit 5
+uv run python cli.py search "周杰伦" --type 10 --limit 5
 ```
 
 ---
@@ -292,7 +308,7 @@ python cli.py search "周杰伦" --type 10 --limit 5
 #### 语法
 
 ```bash
-python cli.py playlist <歌单ID或URL>
+uv run python cli.py playlist <歌单ID或URL>
 ```
 
 #### 参数
@@ -305,10 +321,10 @@ python cli.py playlist <歌单ID或URL>
 
 ```bash
 # 使用歌单ID
-python cli.py playlist 123456
+uv run python cli.py playlist 123456
 
 # 使用URL
-python cli.py playlist "https://music.163.com/playlist?id=123456"
+uv run python cli.py playlist "https://music.163.com/playlist?id=123456"
 ```
 
 ---
@@ -320,7 +336,7 @@ python cli.py playlist "https://music.163.com/playlist?id=123456"
 #### 语法
 
 ```bash
-python cli.py album <专辑ID或URL>
+uv run python cli.py album <专辑ID或URL>
 ```
 
 #### 参数
@@ -333,10 +349,10 @@ python cli.py album <专辑ID或URL>
 
 ```bash
 # 使用专辑ID
-python cli.py album 16906
+uv run python cli.py album 16906
 
 # 使用URL
-python cli.py album "https://music.163.com/album?id=16906"
+uv run python cli.py album "https://music.163.com/album?id=16906"
 ```
 
 ---
@@ -348,7 +364,7 @@ python cli.py album "https://music.163.com/album?id=16906"
 #### 语法
 
 ```bash
-python cli.py download <歌曲ID或URL> [options]
+uv run python cli.py download <歌曲ID或URL> [options]
 ```
 
 #### 参数
@@ -369,7 +385,7 @@ python cli.py download <歌曲ID或URL> [options]
 ##### 1. 下载文件（默认）
 
 ```bash
-python cli.py download 185668
+uv run python cli.py download 185668
 ```
 
 **返回：**
@@ -398,7 +414,7 @@ python cli.py download 185668
 ##### 2. 仅获取下载信息（不下载文件）
 
 ```bash
-python cli.py download 185668 --format json
+uv run python cli.py download 185668 --format json
 ```
 
 **返回：**
@@ -425,7 +441,7 @@ python cli.py download 185668 --format json
 ##### 3. 指定音质下载
 
 ```bash
-python cli.py download 185668 --quality hires
+uv run python cli.py download 185668 --quality hires
 ```
 
 ##### 4. 批量下载（Shell脚本）
@@ -434,7 +450,7 @@ python cli.py download 185668 --quality hires
 #!/bin/bash
 # 批量下载歌曲
 for id in 185668 186016 186017; do
-    python cli.py download $id --quality lossless
+    uv run python cli.py download $id --quality lossless
 done
 ```
 
@@ -455,16 +471,16 @@ done
 
 ```bash
 # 人类可读输出
-python cli.py --output human health
+uv run python cli.py --output human health
 
 # 使用自定义Cookie文件
-python cli.py --cookie /custom/path/cookie.txt song 185668
+uv run python cli.py --cookie /custom/path/cookie.txt song 185668
 
 # 详细日志模式
-python cli.py --verbose search "周杰伦"
+uv run python cli.py --verbose search "周杰伦"
 
 # 静默模式
-python cli.py --quiet download 185668
+uv run python cli.py --quiet download 185668
 ```
 
 ---
@@ -476,7 +492,7 @@ python cli.py --quiet download 185668
 适用于程序解析和自动化脚本。
 
 ```bash
-python cli.py song 185668
+uv run python cli.py song 185668
 ```
 
 **输出：**
@@ -500,7 +516,7 @@ python cli.py song 185668
 适用于调试和人工查看。
 
 ```bash
-python cli.py --output human song 185668
+uv run python cli.py --output human song 185668
 ```
 
 **输出：**
@@ -535,7 +551,7 @@ CLI使用标准化退出码，便于脚本判断执行结果：
 ```bash
 #!/bin/bash
 # 根据退出码判断结果
-python cli.py song 185668
+uv run python cli.py song 185668
 exit_code=$?
 
 if [ $exit_code -eq 0 ]; then
@@ -565,7 +581,7 @@ for id in "${SONG_IDS[@]}"; do
     echo "正在处理歌曲ID: $id"
 
     # 调用CLI
-    result=$(python cli.py download "$id" --quality lossless)
+    result=$(uv run python cli.py download "$id" --quality lossless)
 
     # 解析结果（使用jq）
     success=$(echo "$result" | jq -r '.success')
@@ -589,7 +605,7 @@ import json
 
 def download_song(song_id, quality='lossless'):
     """调用CLI下载歌曲"""
-    cmd = ['python', 'cli.py', 'download', song_id, '--quality', quality]
+    cmd = ['uv', 'run', 'python', 'cli.py', 'download', song_id, '--quality', quality]
 
     result = subprocess.run(
         cmd,
@@ -625,7 +641,7 @@ tools = [
         "name": "netease_music_search",
         "description": "搜索网易云音乐",
         "function": lambda keyword: subprocess.run(
-            ['python', 'cli.py', 'search', keyword, '--limit', '10'],
+            ['uv', 'run', 'python', 'cli.py', 'search', keyword, '--limit', '10'],
             capture_output=True,
             text=True
         ).stdout
@@ -634,7 +650,7 @@ tools = [
         "name": "netease_music_download",
         "description": "下载网易云音乐",
         "function": lambda song_id: subprocess.run(
-            ['python', 'cli.py', 'download', song_id, '--quality', 'lossless'],
+            ['uv', 'run', 'python', 'cli.py', 'download', song_id, '--quality', 'lossless'],
             capture_output=True,
             text=True
         ).stdout
@@ -668,10 +684,10 @@ print(json.dumps(data, indent=2, ensure_ascii=False))
 **解决方法：**
 ```bash
 # 使用二维码登录重新获取Cookie
-python qr_login.py
+uv run python qr_login.py
 
 # 或者指定自定义Cookie文件
-python cli.py --cookie /path/to/your/cookie.txt song 185668
+uv run python cli.py --cookie /path/to/your/cookie.txt song 185668
 ```
 
 ### 2. 歌曲无法下载？
@@ -695,7 +711,7 @@ python cli.py --cookie /path/to/your/cookie.txt song 185668
 
 ```bash
 # 尝试标准音质
-python cli.py download 185668 --quality standard
+uv run python cli.py download 185668 --quality standard
 ```
 
 ### 3. 如何批量下载歌单？
@@ -703,7 +719,7 @@ python cli.py download 185668 --quality standard
 ```bash
 #!/bin/bash
 # 1. 获取歌单详情
-playlist_result=$(python cli.py playlist 123456)
+playlist_result=$(uv run python cli.py playlist 123456)
 
 # 2. 提取歌曲ID（需要jq工具）
 song_ids=$(echo "$playlist_result" | jq -r '.data.playlist.tracks[].id')
@@ -711,7 +727,7 @@ song_ids=$(echo "$playlist_result" | jq -r '.data.playlist.tracks[].id')
 # 3. 逐个下载
 for id in $song_ids; do
     echo "下载歌曲ID: $id"
-    python cli.py download $id --quality lossless
+    uv run python cli.py download $id --quality lossless
     sleep 1  # 避免请求过快
 done
 ```
@@ -720,10 +736,10 @@ done
 
 ```bash
 # 使用jq过滤需要的字段
-python cli.py song 185668 | jq '.data | {name, url, size}'
+uv run python cli.py song 185668 | jq '.data | {name, url, size}'
 
 # 美化输出
-python cli.py song 185668 | jq '.'
+uv run python cli.py song 185668 | jq '.'
 ```
 
 ### 5. 如何在Python中集成？
@@ -734,7 +750,7 @@ import json
 
 def call_cli(command):
     """调用CLI命令"""
-    cmd = ['python', 'cli.py'] + command
+    cmd = ['uv', 'run', 'python', 'cli.py'] + command
     result = subprocess.run(cmd, capture_output=True, text=True)
     return json.loads(result.stdout)
 
@@ -764,11 +780,11 @@ print(data['data']['url'])
 
 ```bash
 # 查看所有命令
-python cli.py --help
+uv run python cli.py --help
 
 # 查看特定命令帮助
-python cli.py song --help
-python cli.py download --help
+uv run python cli.py song --help
+uv run python cli.py download --help
 ```
 
 ### 问题反馈
