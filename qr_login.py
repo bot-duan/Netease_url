@@ -78,86 +78,73 @@ class QRLoginClient:
                     return True, None
             
             print("\n开始二维码登录流程...")
-            
+
             # 生成二维码
             print("正在生成二维码...")
-            qr_result = self.qr_manager.create_qr_login()
-            
-            if not qr_result['success']:
-                error_msg = f"生成二维码失败: {qr_result.get('message', '未知错误')}"
+            qr_key = self.qr_manager.create_qr_login()
+
+            if not qr_key:
+                error_msg = "生成二维码失败"
                 self.logger.error(error_msg)
                 return False, error_msg
-            
-            qr_key = qr_result['qr_key']
+
             print(f"\n二维码已生成！")
             print(f"请使用网易云音乐手机APP扫描二维码进行登录")
             print(f"二维码有效期: 3分钟")
             print("\n等待扫码中...")
-            
+
             # 轮询检查登录状态
             max_attempts = 60  # 最多等待5分钟
             attempt = 0
-            
+
             while attempt < max_attempts:
                 try:
                     # 检查登录状态
-                    status_result = self.qr_manager.check_qr_login(qr_key)
-                    
-                    if status_result['success']:
-                        if status_result['status'] == 'success':
-                            # 登录成功
-                            cookie = status_result.get('cookie', '')
-                            if cookie:
-                                # 保存Cookie
-                                success = self.save_cookie(cookie)
-                                if success:
-                                    print("\n✅ 登录成功！Cookie已保存")
-                                    return True, None
-                                else:
-                                    error_msg = "登录成功但Cookie保存失败"
-                                    self.logger.error(error_msg)
-                                    return False, error_msg
+                    # 返回格式: (状态码, cookie字典)
+                    # 状态码: 801=等待扫码, 802=已扫码等待确认, 803=登录成功
+                    status_code, cookies = self.qr_manager.check_qr_login(qr_key)
+
+                    if status_code == 803:
+                        # 登录成功
+                        if 'MUSIC_U' in cookies:
+                            # 构造完整的cookie字符串
+                            cookie_str = f"MUSIC_U={cookies['MUSIC_U']};os=pc;appver=8.9.70;"
+
+                            # 保存Cookie
+                            success = self.save_cookie(cookie_str)
+                            if success:
+                                print("\n✅ 登录成功！Cookie已保存")
+                                return True, None
                             else:
-                                error_msg = "登录成功但未获取到Cookie"
+                                error_msg = "登录成功但Cookie保存失败"
                                 self.logger.error(error_msg)
                                 return False, error_msg
-                        
-                        elif status_result['status'] == 'waiting':
-                            # 等待扫码
-                            if attempt % 10 == 0:  # 每10次显示一次提示
-                                print(f"等待扫码中... ({attempt + 1}/{max_attempts})")
-                        
-                        elif status_result['status'] == 'scanned':
-                            # 已扫码，等待确认
-                            print("二维码已扫描，请在手机上确认登录")
-                        
-                        elif status_result['status'] == 'expired':
-                            # 二维码过期
-                            error_msg = "二维码已过期，请重新尝试"
-                            print(f"\n❌ {error_msg}")
+                        else:
+                            error_msg = "登录成功但未获取到Cookie"
+                            self.logger.error(error_msg)
                             return False, error_msg
-                        
-                        elif status_result['status'] == 'error':
-                            # 登录错误
-                            error_msg = f"登录失败: {status_result.get('message', '未知错误')}"
-                            print(f"\n❌ {error_msg}")
-                            return False, error_msg
-                    
-                    else:
-                        self.logger.warning(f"检查登录状态失败: {status_result.get('message', '未知错误')}")
-                    
-                    # 等待5秒后重试
-                    time.sleep(5)
+
+                    elif status_code == 801:
+                        # 等待扫码
+                        if attempt % 10 == 0:  # 每10次显示一次提示
+                            print(f"等待扫码中... ({attempt + 1}/{max_attempts})")
+
+                    elif status_code == 802:
+                        # 已扫码，等待确认
+                        print("二维码已扫描，请在手机上确认登录")
+
+                    # 等待3秒后重试
+                    time.sleep(3)
                     attempt += 1
-                    
+
                 except KeyboardInterrupt:
                     print("\n用户取消登录")
                     return False, "用户取消登录"
                 except Exception as e:
                     self.logger.error(f"检查登录状态时发生错误: {e}")
-                    time.sleep(5)
+                    time.sleep(3)
                     attempt += 1
-            
+
             # 超时
             error_msg = "登录超时，请重新尝试"
             print(f"\n❌ {error_msg}")
@@ -306,7 +293,7 @@ def main():
             # 显示帮助
             print("网易云音乐二维码登录工具")
             print("\n用法:")
-            print("  python qr_login.py [命令]")
+            print("  uv run python qr_login.py [命令]")
             print("\n命令:")
             print("  login   - 执行二维码登录")
             print("  status  - 显示登录状态")
@@ -314,10 +301,10 @@ def main():
             print("  help    - 显示此帮助信息")
             print("\n如果不提供命令，将进入交互模式")
             sys.exit(0)
-        
+
         else:
             print(f"未知命令: {command}")
-            print("使用 'python qr_login.py help' 查看帮助")
+            print("使用 'uv run python qr_login.py help' 查看帮助")
             sys.exit(1)
     
     # 交互模式
