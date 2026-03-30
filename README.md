@@ -48,6 +48,7 @@
 ### 🌐 使用方式
 - **Web界面**：直观友好的网页操作界面
 - **RESTful API**：完整的API接口支持
+- **CLI命令行**：专为自动化脚本和AI调用优化的命令行接口（新增！）
 - **批量处理**：支持歌单和专辑的批量解析
 - **多格式支持**：支持ID和链接多种输入格式
 
@@ -133,6 +134,151 @@ docker run -d -p 5000:5000 netease-music-api
 2. 输入歌曲ID或链接
 3. 选择音质（标准/极高/无损/Hi-Res等）
 4. 点击**下载**按钮
+
+### CLI命令行使用（新功能！）
+
+专为**自动化脚本**和**AI调用**优化的命令行接口，默认输出JSON格式，支持标准化退出码。
+
+#### 基本语法
+
+```bash
+python cli.py <command> [arguments] [options]
+```
+
+#### 可用命令
+
+| 命令 | 功能 | 示例 |
+|------|------|------|
+| `health` | 健康检查 | `python cli.py health` |
+| `song` | 获取歌曲信息 | `python cli.py song 185668` |
+| `search` | 搜索音乐 | `python cli.py search "周杰伦"` |
+| `playlist` | 获取歌单详情 | `python cli.py playlist 123456` |
+| `album` | 获取专辑详情 | `python cli.py album 123456` |
+| `download` | 下载音乐 | `python cli.py download 185668` |
+
+#### 全局选项
+
+```bash
+--output FORMAT    输出格式：json（默认）或 human
+--cookie FILE      指定Cookie文件路径
+--verbose          输出详细日志到stderr
+--quiet            静默模式，不输出日志
+```
+
+#### 常用示例
+
+##### 1. 健康检查
+```bash
+# 默认JSON输出
+python cli.py health
+
+# 人类可读输出
+python cli.py --output human health
+```
+
+##### 2. 获取歌曲信息
+```bash
+# 获取歌曲URL（默认无损音质）
+python cli.py song 185668
+
+# 获取歌曲详情
+python cli.py song 185668 --type name
+
+# 获取歌词
+python cli.py song 185668 --type lyric
+
+# 获取完整信息
+python cli.py song 185668 --type json
+
+# 指定音质
+python cli.py song 185668 --level hires
+
+# 支持URL输入
+python cli.py song "https://music.163.com/song?id=185668"
+```
+
+##### 3. 搜索音乐
+```bash
+# 搜索歌曲（默认返回30条）
+python cli.py search "周杰伦 稻香"
+
+# 限制返回数量
+python cli.py search "周杰伦" --limit 10
+
+# 人类可读输出
+python cli.py --output human search "周杰伦"
+```
+
+##### 4. 下载音乐
+```bash
+# 下载到本地（默认无损音质）
+python cli.py download 185668
+
+# 仅获取下载信息（不下载文件）
+python cli.py download 185668 --format json
+
+# 指定音质下载
+python cli.py download 185668 --quality hires
+```
+
+#### 退出码说明
+
+```bash
+0    # 成功
+1    # 业务错误（歌曲不存在、版权限制）
+2    # 参数错误
+3    # 系统错误（网络、文件）
+4    # 认证错误（Cookie无效）
+130  # 用户中断（Ctrl+C）
+```
+
+#### 自动化调用示例
+
+##### Shell脚本
+```bash
+#!/bin/bash
+# 批量下载歌曲
+
+SONG_IDS=(185668 186016 186017)
+
+for id in "${SONG_IDS[@]}"; do
+    result=$(python cli.py download "$id" --quality lossless)
+    success=$(echo "$result" | jq -r '.success')
+
+    if [ "$success" = "true" ]; then
+        filename=$(echo "$result" | jq -r '.data.filename')
+        echo "✓ 下载成功: $filename"
+    else
+        error_msg=$(echo "$result" | jq -r '.error.message')
+        echo "✗ 下载失败: $error_msg"
+    fi
+done
+```
+
+##### Python脚本
+```python
+#!/usr/bin/env python3
+import subprocess
+import json
+
+def download_song(song_id, quality='lossless'):
+    """调用CLI下载歌曲"""
+    cmd = ['python', 'cli.py', 'download', song_id, '--quality', quality]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    data = json.loads(result.stdout)
+
+    if data['success']:
+        return data['data']
+    else:
+        print(f"错误: {data['error']['message']}")
+        return None
+
+# 使用
+song_info = download_song('185668')
+if song_info:
+    print(f"下载成功: {song_info['filename']}")
+```
 
 ### 支持的链接格式
 

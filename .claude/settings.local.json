@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python cli.py health)",
+      "Bash(/Users/duan/mambaforge/envs/netease/bin/python cli.py health --output human)",
+      "Bash(/Users/duan/mambaforge/envs/netease/bin/python cli.py --output human health)",
+      "Bash(/Users/duan/mambaforge/envs/netease/bin/python cli.py --quiet health)",
+      "Bash(echo \"退出码: $?\")"
+    ]
+  }
+}
