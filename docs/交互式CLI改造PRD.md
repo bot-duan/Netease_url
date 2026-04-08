@@ -3,9 +3,10 @@
 ## 文档信息
 
 - **创建时间**: 2026-03-31
-- **版本**: v1.0
-- **状态**: 待实施
-- **目标**: 为网易云音乐CLI工具添加交互式体验，同时保持AI友好性
+- **版本**: v2.0
+- **最后更新**: 2026-04-08
+- **状态**: 核心功能已完成，TUI升级进行中
+- **目标**: 为网易云音乐CLI工具添加现代化TUI体验，同时保持AI友好性
 
 ---
 
@@ -14,30 +15,36 @@
 ### 1.1 当前状态
 
 项目已实现功能完整的CLI工具，支持：
-- ✅ 健康检查 (health)
-- ✅ 获取歌曲信息 (song)
-- ✅ 搜索音乐 (search)
-- ✅ 获取歌单 (playlist)
-- ✅ 获取专辑 (album)
-- ✅ 下载音乐 (download)
+- ✅ AI模式（命令式）：完全兼容，专为自动化和AI调用优化
+- ✅ 交互模式v1（Rich Prompt版）：基础功能已实现
+  - 搜索歌曲并显示表格
+  - 下载歌单/专辑（批量选择）
+  - 设置管理
+  - Rich美化输出
 
-**特点**：
-- 命令式调用
-- JSON输出为主
-- 标准化退出码
-- 适合AI调用和脚本自动化
+**技术栈**：
+- AI模式：argparse + JSON输出
+- 交互模式v1：Rich + Prompt（输入数字选择）
+- API调用：HTTP请求到Flask服务
+
+**交互模式v1的问题**：
+- 需要输入数字选择，不够优雅
+- 静态输出，不支持实时刷新
+- 无法提供类似htop的全屏TUI体验
 
 ### 1.2 需求来源
 
 **用户需求**：
-- 希望提供更友好的交互式体验
-- 降低普通用户的使用门槛
-- 提供可视化的操作界面（在终端中）
+- ✅ 提供更友好的交互式体验
+- ✅ 降低普通用户的使用门槛
+- ⭐ **升级目标**：用Textual TUI替换Rich Prompt，提供键盘导航式全屏界面
+- ⭐ **期望体验**：类似htop的实时TUI应用，支持↑↓选择、Enter确认
 
 **技术需求**：
 - 保持现有AI友好特性
 - 不破坏现有CLI接口
 - 代码复用，避免重复开发
+- 升级到现代化TUI框架（Textual）
 
 ---
 
@@ -47,26 +54,33 @@
 
 ```
 统一入口 cli.py
-    ├─ AI模式 (现有功能)
-    │   ├─ 命令式调用
+    ├─ AI模式 (现有功能 - 保持不变)
+    │   ├─ 命令式调用：cli.py <command> [args]
     │   ├─ JSON输出
     │   ├─ 确定性行为
     │   └─ 适合：AI、脚本、CI/CD
     │
-    └─ 交互模式 (新增)
-        ├─ 启动式菜单
-        ├─ 美化输出
-        ├─ 引导式流程
+    └─ 交互模式 (升级到Textual TUI) 🚀
+        ├─ 启动方式：cli.py --interactive / cli.py -i / cli.py
+        ├─ 技术升级：Rich Prompt → Textual TUI
+        ├─ 全屏TUI界面
+        ├─ 键盘导航（↑↓选择，Enter确认）
+        ├─ 实时刷新
         └─ 适合：人类用户
 ```
 
+**交互模式演进**：
+- v1 (已实现)：Rich + Prompt → 输入数字选择
+- v2 (升级中)：Textual TUI → 键盘导航 + 全屏界面
+
 ### 2.2 核心原则
 
-1. **不破坏现有功能**：AI模式保持完全兼容
-2. **统一入口**：单一 `cli.py` 文件
+1. **不破坏现有功能**：AI模式和Rich交互模式保持完全兼容
+2. **统一入口**：单一 `cli.py` 文件，支持多模式
 3. **模式隔离**：明确的触发条件，不会误触发
 4. **代码复用**：通过HTTP调用现有API服务
 5. **一致体验**：配置统一管理
+6. **渐进增强**：从Rich Prompt升级到Textual TUI
 
 ---
 
@@ -296,47 +310,57 @@ uv run python cli.py album 123456
 ```toml
 dependencies = [
     # ... 现有依赖
-    "rich>=13.0.0",           # 界面美化
-    "prompt_toolkit>=3.0.0",  # 可选，高级输入
+    "rich>=13.0.0",           # 输出美化（保留，Textual也依赖）
+    "textual>=0.50.0",        # TUI框架（新增）
 ]
 ```
+
+**Textual vs Rich**：
+- Rich：提供表格、面板、进度条等组件（继续使用）
+- Textual：提供全屏TUI应用框架、键盘导航、布局系统（新增）
 
 ### 4.3 文件结构
 
 ```
 项目根目录/
-├── cli.py                    # 统一入口（修改）
-│   ├─ main()                 # 模式路由逻辑
-│   ├─ AI模式调用             # 现有逻辑
-│   └─ 交互模式调用           # 新增
+├── cli.py                        # 统一入口（修改）
+│   ├─ main()                     # 模式路由逻辑
+│   ├─ AI模式调用                 # 现有逻辑
+│   └─ 交互模式调用               # Textual TUI
 │
-├── cli_commands.py           # AI模式命令（保持不变）
+├── cli_commands.py               # AI模式命令（保持不变）
 │   ├─ HealthCommand
 │   ├─ SongCommand
 │   ├─ SearchCommand
 │   ├─ DownloadCommand
 │   └─ ... 其他命令
 │
-├── cli_interactive.py        # 交互模式（新增）
-│   ├─ InteractiveShell       # 主交互类
-│   ├─ MenuRenderer           # 菜单渲染
-│   ├─ SearchHandler          # 搜索功能
-│   ├─ DownloadHandler        # 下载功能
-│   ├─ HistoryManager         # 历史管理
-│   └─ ConfigManager          # 配置管理
+├── cli_tui.py                    # Textual TUI应用（新增）
+│   ├─ MusicTuiApp                # Textual应用主类
+│   ├─ screens/                   # TUI屏幕
+│   │   ├─ MainMenu              # 主菜单屏幕
+│   │   ├─ SearchScreen           # 搜索屏幕
+│   │   ├─ PlaylistScreen         # 歌单屏幕
+│   │   ├─ AlbumScreen            # 专辑屏幕
+│   │   └─ SettingsScreen         # 设置屏幕
+│   ├─ widgets/                   # 自定义组件
+│   │   ├─ SongListWidget         # 歌曲列表组件
+│   │   ├─ DownloadProgress       # 下载进度组件
+│   │   └─ QualitySelector        # 音质选择组件
+│   └─ styles/                    # 样式定义
+│       └─ tui_styles.css         # Textual CSS样式
 │
-├── music_api.py              # 核心API（保持不变）
+├── music_api.py                  # 核心API（保持不变）
 │   ├─ QRLoginManager
 │   ├─ MusicAPI
 │   └─ ... 其他类
 │
-├── config.json               # 配置文件（新增）
+├── config.json                   # 配置文件（已有）
 │   ├─ default_quality
 │   ├─ download_dir
-│   ├─ max_concurrent
 │   └─ ... 其他配置
 │
-└── downloads/                # 下载目录（已有）
+└── downloads/                    # 下载目录（已有）
     └─ 音乐文件
 ```
 
@@ -358,7 +382,7 @@ def main():
     # 交互模式标志
     parser.add_argument('-i', '--interactive',
                        action='store_true',
-                       help='启动交互模式')
+                       help='启动TUI交互模式')
 
     # 现有参数...
     parser.add_argument('command', nargs='?', help='命令')
@@ -369,62 +393,162 @@ def main():
 
     # 模式路由
     if args.interactive or len(sys.argv) == 1:
-        # 交互模式
-        from cli_interactive import InteractiveShell
-        shell = InteractiveShell()
-        shell.run()
+        # TUI交互模式
+        from cli_tui import MusicTuiApp
+        app = MusicTuiApp()
+        app.run()
     else:
         # AI模式（现有逻辑）
         from cli_commands import main as cmd_main
         cmd_main()
-
-if __name__ == '__main__':
-    main()
 ```
 
-#### cli_interactive.py (新增)
+#### cli_tui.py (Textual TUI应用)
 
 ```python
-from rich.console import Console
-from rich.table import Table
-from rich.progress import Progress
-from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
+from textual.app import App, ComposeResult
+from textual.widgets import (
+    ListView, ListItem, Label, Header, Footer,
+    Input, ProgressBar, Static
+)
 
-import music_api
+class MusicTuiApp(App):
+    """网易云音乐TUI应用"""
 
-class InteractiveShell:
-    """交互式Shell主类"""
+    CSS = """
+    Screen {
+        background: $background;
+    }
+    ListView {
+        border: solid $primary;
+        height: 100%;
+    }
+    ListItem {
+        padding: 1 2;
+    }
+    ListItem.-highlighted {
+        background: $primary;
+        color: $text;
+    }
+    """
 
-    def __init__(self):
-        self.console = Console()
-        self.api = music_api.MusicAPI()
-        self.config = self.load_config()
-        self.history = HistoryManager()
+    def compose(self) -> ComposeResult:
+        """构建TUI界面"""
+        yield Header()
+        yield ListView(
+            ListItem(Label("🔍 搜索歌曲")),
+            ListItem(Label("📋 下载歌单")),
+            ListItem(Label("💿 下载专辑")),
+            ListItem(Label("⚙️  设置")),
+            ListItem(Label("🚪 退出")),
+        )
+        yield Footer()
 
-    def run(self):
-        """运行交互式Shell"""
-        self.show_welcome()
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """处理菜单选择"""
+        option_index = event.item_index
+        
+        if option_index == 0:
+            self.push_screen("search")
+        elif option_index == 1:
+            self.push_screen("playlist")
+        elif option_index == 2:
+            self.push_screen("album")
+        elif option_index == 3:
+            self.push_screen("settings")
+        elif option_index == 4:
+            self.exit()
+```
 
-        while True:
-            try:
-                choice = self.show_main_menu()
+### 4.5 Textual TUI界面设计
 
-                if choice == '1':
-                    self.search_music()
-                elif choice == '2':
-                    self.download_playlist()
-                elif choice == '3':
-                    self.download_album()
-                elif choice == '4':
-                    self.show_history()
-                elif choice == '5':
-                    self.show_settings()
-                elif choice in ['0', 'q', 'exit']:
-                    self.console.print("👋 再见！", style="bold green")
-                    break
-                else:
-                    self.console.print("❌ 无效选择", style="red")
+#### 主菜单屏幕
+
+```python
+from textual.screen import Screen
+from textual.widgets import ListView, ListItem, Label
+
+class MainMenu(Screen):
+    """主菜单屏幕"""
+
+    def compose(self) -> ComposeResult:
+        yield ListView(
+            ListItem(Label("🔍 搜索歌曲")),
+            ListItem(Label("📋 下载歌单")),
+            ListItem(Label("💿 下载专辑")),
+            ListItem(Label("⚙️  设置")),
+            ListItem(Label("🚪 退出")),
+        )
+```
+
+#### 搜索屏幕
+
+```python
+class SearchScreen(Screen):
+    """搜索屏幕"""
+
+    def compose(self) -> ComposeResult:
+        yield Input(placeholder="输入搜索关键词...", id="search_input")
+        yield ListView(id="search_results")
+        yield Static("按 Enter 搜索，↑↓ 选择，q 返回")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """处理搜索输入"""
+        keyword = event.value
+        # 调用搜索API
+        results = self.search_music(keyword)
+        # 更新列表视图
+        self.query_one(ListView).remove_children()
+        for song in results:
+            yield ListItem(Label(f"{song['name']} - {song['artist']}"))
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """处理歌曲选择"""
+        song_index = event.item_index
+        # 进入下载界面
+        self.push_screen("download", {"song": self.search_results[song_index]})
+```
+
+#### 下载进度屏幕
+
+```python
+class DownloadScreen(Screen):
+    """下载进度屏幕"""
+
+    def compose(self) -> ComposeResult:
+        yield Label("⬇️  下载中...", id="status")
+        yield ProgressBar(total=100, show_eta=True, id="progress")
+        yield Label("", id="current_file")
+
+    def on_mount(self) -> None:
+        """屏幕加载时开始下载"""
+        self.download_next()
+
+    def download_next(self):
+        """下载下一首歌曲"""
+        if self.current_index < len(self.songs):
+            song = self.songs[self.current_index]
+            self.query_one(Label, "#current_file").update(
+                f"[{self.current_index + 1}/{len(self.songs)}] {song['name']}"
+            )
+            # 异步下载
+            # ...下载逻辑
+            self.current_index += 1
+            self.download_next()
+        else:
+            self.app.pop_screen()
+```
+
+#### 键盘快捷键
+
+| 按键 | 功能 | 适用屏幕 |
+|------|------|---------|
+| ↑↓ | 导航选项 | 所有列表 |
+| Enter | 确认选择 | 所有列表 |
+| Esc/q | 返回上级 | 所有屏幕 |
+| / | 搜索 | 列表屏幕 |
+| n | 下页 | 分页列表 |
+| p | 上页 | 分页列表 |
 
             except KeyboardInterrupt:
                 self.console.print("\n👋 再见！", style="bold green")
@@ -591,37 +715,57 @@ class InteractiveShell:
 
 ### 5.1 实施阶段
 
-#### Phase 1: 基础架构（2-3小时）✅ 已完成
-- [x] 创建 `cli_interactive.py` 文件
-- [x] 修改 `cli.py` 添加模式路由
-- [x] 实现 `InteractiveShell` 基础框架
-- [x] 添加 `rich` 依赖到 `pyproject.toml`
-- [x] 实现欢迎界面和主菜单
-
-#### Phase 2: 核心功能（4-5小时）✅ 已完成
-- [x] 实现搜索功能（输入、结果展示、选择）
-- [x] 实现下载功能（音质选择、进度显示）
-- [x] 实现批量下载
-- [x] 错误处理和重试机制
-
-#### Phase 3: 辅助功能（2-3小时）✅ 已完成
-- [x] 实现设置功能（config.json）
-- [x] 实现歌单/专辑下载
-- [x] 实现批量选择和下载
-
-#### Phase 4: 优化完善（1-2小时）✅ 部分完成
-- [x] 界面美化和细节优化
-- [x] 快捷键支持
-- [ ] 搜索建议（后续优化）
-- [ ] 单元测试（后续添加）
-
-#### Phase 5: 文档和测试（1小时）✅ 已完成
-- [x] 更新使用文档
-- [x] 更新README（待完善）
-- [x] 完整功能测试
+#### Phase 1-5: Rich交互模式（已完成）✅
 
 **实际开发时间**: 约 4-5 小时
+
 **实施状态**: 核心功能已完成，可投入使用
+
+**已完成功能**:
+- ✅ Rich美化界面
+- ✅ 搜索歌曲并显示表格
+- ✅ 下载歌单/专辑（批量选择）
+- ✅ 设置管理
+- ✅ 进度显示和统计
+
+#### Phase 6: Textual TUI升级（进行中）🚀
+
+**预计开发时间**: 约 3-4 小时
+
+**实施步骤**:
+
+1. **环境准备** (30分钟)
+   - [ ] 添加 `textual>=0.50.0` 到依赖
+   - [ ] 创建 `cli_tui.py` 基础框架
+   - [ ] 修改 `cli.py` 添加TUI路由
+
+2. **主菜单屏幕** (1小时)
+   - [ ] 实现 MainMenu 屏幕
+   - [ ] 添加 Header 和 Footer
+   - [ ] 定义 CSS 样式
+   - [ ] 测试键盘导航
+
+3. **搜索功能屏幕** (1小时)
+   - [ ] 实现 SearchScreen
+   - [ ] 添加搜索输入框
+   - [ ] 实现结果列表视图
+   - [ ] 支持键盘选择和确认
+
+4. **下载进度屏幕** (1小时)
+   - [ ] 实现 DownloadScreen
+   - [ ] 添加进度条组件
+   - [ ] 实时状态更新
+   - [ ] 支持批量下载
+
+5. **其他屏幕** (30分钟)
+   - [ ] 歌单下载屏幕
+   - [ ] 专辑下载屏幕
+   - [ ] 设置屏幕
+
+6. **测试和优化** (30分钟)
+   - [ ] 完整功能测试
+   - [ ] 性能优化
+   - [ ] 错误处理完善
 
 ---
 
