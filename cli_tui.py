@@ -336,6 +336,116 @@ class PlaylistScreen(Screen):
             self.app.pop_screen()
 
 
+# ==================== Settings Screen ====================
+
+class SettingsScreen(Screen):
+    """设置屏幕"""
+
+    CSS = """
+    SettingsScreen {
+        layout: vertical;
+    }
+    #settings-title {
+        text-align: center;
+        text-style: bold;
+        padding: 1;
+    }
+    #settings-content {
+        height: 1fr;
+        margin: 0 2;
+    }
+    #settings-hint {
+        margin: 0 2;
+        text-style: dim;
+    }
+    """
+
+    def __init__(self, app_instance, current_quality: str):
+        super().__init__()
+        self.app_instance = app_instance
+        self.current_quality = current_quality
+
+    def compose(self) -> ComposeResult:
+        yield Label("⚙️  设置", id="settings-title")
+        yield ListView(id="settings-content")
+        yield Label("💡 提示: Esc返回主菜单", id="settings-hint")
+
+    def on_mount(self) -> None:
+        """组件挂载时显示设置内容"""
+        self.display_settings()
+
+    def display_settings(self):
+        """显示设置内容"""
+        settings_list = self.query_one("#settings-content", ListView)
+        settings_list.clear()
+
+        # 音质选项
+        quality_names = {
+            "standard": "标准音质 (128kbps)",
+            "exhigh": "极高音质 (320kbps)",
+            "lossless": "无损音质 (FLAC) ⭐",
+            "hires": "Hi-Res (24bit/96kHz)",
+            "sky": "沉浸环绕声 (VIP)",
+            "jymaster": "超清母带 (SVIP)",
+        }
+
+        current_quality_name = quality_names.get(
+            self.current_quality,
+            self.current_quality
+        )
+
+        settings_list.append(
+            ListItem(Label(f"🎵 默认音质: {current_quality_name}"))
+        )
+        settings_list.append(
+            ListItem(Label("🔄 修改默认音质"))
+        )
+        settings_list.append(
+            ListItem(Label("💡 修改后自动返回主菜单"))
+        )
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """处理设置选项选择"""
+        if event.list_view.index == 1:  # 修改默认音质
+            # 显示音质选择对话框
+            def on_quality_selected(quality):
+                self.current_quality = quality
+                self.app_instance.current_quality = quality
+
+                # 更新显示
+                self.display_settings()
+
+                # 显示成功提示
+                settings_list = self.query_one("#settings-content", ListView)
+                quality_names = {
+                    "standard": "标准",
+                    "exhigh": "极高",
+                    "lossless": "无损",
+                    "hires": "Hi-Res",
+                    "sky": "环绕声",
+                    "jymaster": "母带",
+                }
+                name = quality_names.get(quality, quality)
+                settings_list.clear()
+                settings_list.append(
+                    ListItem(Label(f"✅ 已设置为: {name}"))
+                )
+                settings_list.append(
+                    ListItem(Label("💡 按ESC返回主菜单"))
+                )
+
+            self.app_instance.push_screen(
+                QualitySelectionScreen(self.current_quality),
+                on_quality_selected
+            )
+
+    def on_key(self, event: events.Key) -> None:
+        """处理按键事件"""
+        if event.key == "escape":
+            # 按ESC返回主菜单
+            self.app.pop_screen()
+
+
 # ==================== Album Screen ====================
 
 class AlbumScreen(Screen):
@@ -696,15 +806,9 @@ class MusicTuiApp(App):
         self.push_screen(album_screen)
 
     def show_settings_screen(self):
-        """显示设置屏幕（简化版）"""
-        def on_quality_selected(quality):
-            self.current_quality = quality
-            self.show_settings_info()
-
-        self.push_screen(
-            QualitySelectionScreen(self.current_quality),
-            on_quality_selected
-        )
+        """显示设置屏幕"""
+        settings_screen = SettingsScreen(self, self.current_quality)
+        self.push_screen(settings_screen)
 
     def on_key(self, event: events.Key) -> None:
         """处理全局按键"""
@@ -714,16 +818,6 @@ class MusicTuiApp(App):
             if len(self.screen_stack) > 1:
                 self.pop_screen()
             # 如果已经在主菜单，不做任何事（避免误操作退出）
-
-    def show_settings_info(self):
-        """显示设置信息"""
-        self.query_one("#main-menu", ListView).clear()
-        self.query_one("#main-menu", ListView).append(
-            ListItem(Label(f"⚙️  默认音质: {self.current_quality}"))
-        )
-        self.query_one("#main-menu", ListView).append(
-            ListItem(Label("💡 按Esc返回主菜单"))
-        )
 
 
 # ==================== Entry Point ====================
