@@ -24,6 +24,13 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
+    # 交互模式标志
+    parser.add_argument(
+        '-i', '--interactive',
+        action='store_true',
+        help='启动交互模式'
+    )
+
     # 全局选项
     parser.add_argument(
         '--cookie',
@@ -134,7 +141,33 @@ def main():
     # 解析参数
     args = parser.parse_args()
 
-    # 如果没有指定命令，显示帮助
+    # 判断是否进入交互模式
+    # 条件：显式指定-i/--interactive，或者没有提供任何参数
+    if args.interactive or len(sys.argv) == 1:
+        # 交互模式
+        try:
+            from cli_interactive import InteractiveShell
+            shell = InteractiveShell()
+            shell.run()
+            sys.exit(ExitCode.SUCCESS)
+        except ImportError as e:
+            error_result = JSONFormatter.error(
+                ExitCode.SYSTEM_ERROR,
+                "ImportError",
+                f"无法导入交互模式模块: {e}"
+            )
+            print(json.dumps(error_result, ensure_ascii=False, indent=2))
+            sys.exit(ExitCode.SYSTEM_ERROR)
+        except Exception as e:
+            error_result = JSONFormatter.error(
+                ExitCode.SYSTEM_ERROR,
+                "InteractiveError",
+                f"交互模式启动失败: {e}"
+            )
+            print(json.dumps(error_result, ensure_ascii=False, indent=2))
+            sys.exit(ExitCode.SYSTEM_ERROR)
+
+    # AI模式：如果没有指定命令，显示帮助
     if not args.command:
         parser.print_help()
         sys.exit(ExitCode.PARAMETER_ERROR)
