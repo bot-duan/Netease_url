@@ -424,10 +424,11 @@ class MusicTuiApp(App):
     def on_key(self, event: events.Key) -> None:
         """处理全局按键"""
         if event.key == "escape":
-            # ESC键返回主菜单
-            # 如果当前有打开的Screen，关闭它
-            if self.screen_stack:
+            # ESC键返回主菜单或退出
+            # 如果有额外的Screen（除了默认screen），关闭它
+            if len(self.screen_stack) > 1:
                 self.pop_screen()
+            # 如果已经在主菜单，不做任何事（避免误操作退出）
 
     def show_settings_info(self):
         """显示设置信息"""
