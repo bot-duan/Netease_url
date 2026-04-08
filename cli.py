@@ -144,25 +144,25 @@ def main():
     # 判断是否进入交互模式
     # 条件：显式指定-i/--interactive，或者没有提供任何参数
     if args.interactive or len(sys.argv) == 1:
-        # 交互模式
+        # Textual TUI交互模式
         try:
-            from cli_interactive import InteractiveShell
-            shell = InteractiveShell()
-            shell.run()
+            from cli_tui import MusicTuiApp
+            app = MusicTuiApp()
+            app.run()
             sys.exit(ExitCode.SUCCESS)
         except ImportError as e:
             error_result = JSONFormatter.error(
                 ExitCode.SYSTEM_ERROR,
                 "ImportError",
-                f"无法导入交互模式模块: {e}"
+                f"无法导入TUI模块: {e}。请确保已安装textual库: uv sync"
             )
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(ExitCode.SYSTEM_ERROR)
         except Exception as e:
             error_result = JSONFormatter.error(
                 ExitCode.SYSTEM_ERROR,
-                "InteractiveError",
-                f"交互模式启动失败: {e}"
+                "TUIError",
+                f"TUI启动失败: {e}"
             )
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(ExitCode.SYSTEM_ERROR)

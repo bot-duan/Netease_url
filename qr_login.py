@@ -22,27 +22,41 @@ except ImportError as e:
     sys.exit(1)
 
 
+def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    """配置并返回日志记录器
+
+    Args:
+        name: 日志记录器名称
+        level: 日志级别
+
+    Returns:
+        配置好的日志记录器
+    """
+    logger = logging.getLogger(name)
+
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(level)
+
+    return logger
+
+
 class QRLoginClient:
     """二维码登录客户端"""
     
     def __init__(self, cookie_file: str = "cookie.txt"):
         """
         初始化二维码登录客户端
-        
+
         Args:
             cookie_file: Cookie保存文件路径
         """
         self.cookie_manager = CookieManager(cookie_file)
         self.qr_manager = QRLoginManager()
-        self.logger = logging.getLogger(__name__)
-        
-        # 配置日志
-        if not self.logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
-            self.logger.setLevel(logging.INFO)
+        self.logger = setup_logger(__name__)
     
     def check_existing_login(self) -> bool:
         """检查是否已有有效登录
