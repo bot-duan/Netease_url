@@ -184,6 +184,305 @@ class DownloadProgressScreen(ModalScreen):
         self.dismiss((self.success_count, self.fail_count))
 
 
+# ==================== Playlist Screen ====================
+
+class PlaylistScreen(Screen):
+    """歌单下载屏幕"""
+
+    CSS = """
+    PlaylistScreen {
+        layout: vertical;
+    }
+    #playlist-title {
+        text-align: center;
+        text-style: bold;
+        padding: 1;
+    }
+    #playlist-input {
+        width: 1fr;
+        margin: 1 2;
+    }
+    #playlist-info {
+        margin: 1 2;
+        text-style: bold;
+    }
+    #playlist-songs {
+        height: 1fr;
+        margin: 0 2;
+    }
+    #playlist-hint {
+        margin: 0 2;
+        text-style: dim;
+    }
+    """
+
+    def __init__(self, app_instance):
+        super().__init__()
+        self.app_instance = app_instance
+        self.playlist_data = None
+        self.songs = []
+
+    def compose(self) -> ComposeResult:
+        yield Label("📋 下载歌单", id="playlist-title")
+        yield Input(
+            placeholder="输入歌单ID或URL",
+            id="playlist-input"
+        )
+        yield Label("", id="playlist-info")
+        yield ListView(id="playlist-songs")
+        yield Label("💡 提示: Esc返回主菜单", id="playlist-hint")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """处理歌单ID输入"""
+        if event.input.id == "playlist-input":
+            playlist_input = event.value.strip()
+
+            if not playlist_input:
+                return
+
+            self.fetch_playlist(playlist_input)
+
+    def fetch_playlist(self, playlist_input: str):
+        """获取歌单信息"""
+        # 提取歌单ID
+        playlist_id = self.extract_id(playlist_input)
+        if not playlist_id:
+            self.query_one("#playlist-info", Label).update("❌ 无效的歌单ID或URL")
+            return
+
+        # 显示加载中
+        self.query_one("#playlist-info", Label).update("⏳ 正在获取歌单信息...")
+
+        # 调用API
+        client = APIClientWrapper.get_client()
+        result = client.get_playlist(playlist_id)
+
+        if result.get('success'):
+            self.playlist_data = result.get('data', {})
+            self.songs = self.playlist_data.get('songs', [])
+
+            # 显示歌单信息
+            playlist_info = self.playlist_data.get('playlist', {})
+            playlist_name = playlist_info.get('name', 'Unknown')
+            creator = playlist_info.get('creator', {}).get('nickname', 'Unknown')
+
+            self.query_one("#playlist-info", Label).update(
+                f"📀 {playlist_name} | 👤 {creator} | 🎵 {len(self.songs)}首"
+            )
+
+            # 显示歌曲列表
+            songs_list = self.query_one("#playlist-songs", ListView)
+            songs_list.clear()
+
+            for idx, song in enumerate(self.songs[:50], 1):  # 限制显示50首
+                name = song.get('name', 'Unknown')
+                artists = song.get('artists', 'Unknown')
+
+                item = ListItem(Label(f"{idx}. {name} - {artists}"))
+                songs_list.append(item)
+
+            if len(self.songs) > 50:
+                self.query_one("#playlist-hint", Label).update(
+                    f"💡 显示前50首，共{len(self.songs)}首 | Esc返回"
+                )
+        else:
+            self.query_one("#playlist-info", Label).update("❌ 获取歌单失败")
+
+    def extract_id(self, input_str: str) -> str:
+        """从URL或输入中提取ID"""
+        import re
+
+        input_str = input_str.strip()
+
+        # 如果是纯数字，直接返回
+        if input_str.isdigit():
+            return input_str
+
+        # 尝试从URL中提取ID
+        if 'music.163.com' in input_str:
+            match = re.search(r'[?&]id=(\d+)', input_str)
+            if match:
+                return match.group(1)
+
+        return ""
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """处理歌曲选择"""
+        if len(self.songs) > 0:
+            # 下载全部歌曲
+            self.download_all_songs()
+
+    def download_all_songs(self):
+        """下载全部歌曲"""
+        if not self.songs:
+            return
+
+        # 显示音质选择对话框
+        def on_quality_selected(quality):
+            # 显示下载进度
+            self.app_instance.push_screen(
+                DownloadProgressScreen(self.songs, quality)
+            )
+
+        self.app_instance.push_screen(
+            QualitySelectionScreen(),
+            on_quality_selected
+        )
+
+    def on_key(self, event: events.Key) -> None:
+        """处理按键事件"""
+        if event.key == "escape":
+            # 按ESC返回主菜单
+            self.app.pop_screen()
+
+
+# ==================== Album Screen ====================
+
+class AlbumScreen(Screen):
+    """专辑下载屏幕"""
+
+    CSS = """
+    AlbumScreen {
+        layout: vertical;
+    }
+    #album-title {
+        text-align: center;
+        text-style: bold;
+        padding: 1;
+    }
+    #album-input {
+        width: 1fr;
+        margin: 1 2;
+    }
+    #album-info {
+        margin: 1 2;
+        text-style: bold;
+    }
+    #album-songs {
+        height: 1fr;
+        margin: 0 2;
+    }
+    #album-hint {
+        margin: 0 2;
+        text-style: dim;
+    }
+    """
+
+    def __init__(self, app_instance):
+        super().__init__()
+        self.app_instance = app_instance
+        self.album_data = None
+        self.songs = []
+
+    def compose(self) -> ComposeResult:
+        yield Label("💿 下载专辑", id="album-title")
+        yield Input(
+            placeholder="输入专辑ID或URL",
+            id="album-input"
+        )
+        yield Label("", id="album-info")
+        yield ListView(id="album-songs")
+        yield Label("💡 提示: Esc返回主菜单", id="album-hint")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """处理专辑ID输入"""
+        if event.input.id == "album-input":
+            album_input = event.value.strip()
+
+            if not album_input:
+                return
+
+            self.fetch_album(album_input)
+
+    def fetch_album(self, album_input: str):
+        """获取专辑信息"""
+        # 提取专辑ID
+        album_id = self.extract_id(album_input)
+        if not album_id:
+            self.query_one("#album-info", Label).update("❌ 无效的专辑ID或URL")
+            return
+
+        # 显示加载中
+        self.query_one("#album-info", Label).update("⏳ 正在获取专辑信息...")
+
+        # 调用API
+        client = APIClientWrapper.get_client()
+        result = client.get_album(album_id)
+
+        if result.get('success'):
+            self.album_data = result.get('data', {})
+            self.songs = self.album_data.get('songs', [])
+
+            # 显示专辑信息
+            album_info = self.album_data.get('album', {})
+            album_name = album_info.get('name', 'Unknown')
+            artist = album_info.get('artist', {}).get('name', 'Unknown')
+
+            self.query_one("#album-info", Label).update(
+                f"💿 {album_name} | 👤 {artist} | 🎵 {len(self.songs)}首"
+            )
+
+            # 显示歌曲列表
+            songs_list = self.query_one("#album-songs", ListView)
+            songs_list.clear()
+
+            for idx, song in enumerate(self.songs, 1):
+                name = song.get('name', 'Unknown')
+                artists = song.get('artists', 'Unknown')
+
+                item = ListItem(Label(f"{idx}. {name} - {artists}"))
+                songs_list.append(item)
+        else:
+            self.query_one("#album-info", Label).update("❌ 获取专辑失败")
+
+    def extract_id(self, input_str: str) -> str:
+        """从URL或输入中提取ID"""
+        import re
+
+        input_str = input_str.strip()
+
+        # 如果是纯数字，直接返回
+        if input_str.isdigit():
+            return input_str
+
+        # 尝试从URL中提取ID
+        if 'music.163.com' in input_str:
+            match = re.search(r'[?&]id=(\d+)', input_str)
+            if match:
+                return match.group(1)
+
+        return ""
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """处理歌曲选择"""
+        if len(self.songs) > 0:
+            # 下载全部歌曲
+            self.download_all_songs()
+
+    def download_all_songs(self):
+        """下载全部歌曲"""
+        if not self.songs:
+            return
+
+        # 显示音质选择对话框
+        def on_quality_selected(quality):
+            # 显示下载进度
+            self.app_instance.push_screen(
+                DownloadProgressScreen(self.songs, quality)
+            )
+
+        self.app_instance.push_screen(
+            QualitySelectionScreen(),
+            on_quality_selected
+        )
+
+    def on_key(self, event: events.Key) -> None:
+        """处理按键事件"""
+        if event.key == "escape":
+            # 按ESC返回主菜单
+            self.app.pop_screen()
+
+
 # ==================== Search Screen ====================
 
 class SearchScreen(Screen):
@@ -387,28 +686,14 @@ class MusicTuiApp(App):
         self.push_screen(search_screen)
 
     def show_playlist_screen(self):
-        """显示歌单下载屏幕（简化版）"""
-        def show_input():
-            # 这里应该使用Input Screen，简化版直接返回
-            self.query_one("#main-menu", ListView).clear()
-            self.query_one("#main-menu", ListView).append(
-                ListItem(Label("📋 输入歌单ID或URL"))
-            )
-            self.query_one("#main-menu", ListView).append(
-                ListItem(Label("💡 功能开发中，按Esc返回..."))
-            )
-
-        show_input()
+        """显示歌单下载屏幕"""
+        playlist_screen = PlaylistScreen(self)
+        self.push_screen(playlist_screen)
 
     def show_album_screen(self):
-        """显示专辑下载屏幕（简化版）"""
-        self.query_one("#main-menu", ListView).clear()
-        self.query_one("#main-menu", ListView).append(
-            ListItem(Label("💿 输入专辑ID或URL"))
-        )
-        self.query_one("#main-menu", ListView).append(
-            ListItem(Label("💡 功能开发中，按Esc返回..."))
-        )
+        """显示专辑下载屏幕"""
+        album_screen = AlbumScreen(self)
+        self.push_screen(album_screen)
 
     def show_settings_screen(self):
         """显示设置屏幕（简化版）"""
