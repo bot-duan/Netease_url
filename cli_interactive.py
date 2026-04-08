@@ -352,21 +352,22 @@ class InteractiveShell:
         """下载单首歌曲"""
         try:
             with self.console.status("[bold yellow]正在下载...", spinner="dots"):
+                # 使用format=json，API会下载文件并返回信息
                 result = call_api(
                     "/download",
                     method="POST",
-                    data={"id": song_id, "level": quality}
+                    data={"id": song_id, "level": quality, "format": "json"}
                 )
 
             if result.get('success'):
                 data = result.get('data', {})
-                filename = data.get('filename', 'Unknown')
-                size = data.get('file_size_formatted', '0MB')
 
                 self.console.print(f"\n✅ 下载完成！", style="bold green")
-                self.console.print(f"   文件: {filename}", style="green")
-                self.console.print(f"   大小: {size}", style="green")
-                self.console.print(f"   音质: {quality}", style="green")
+                self.console.print(f"   歌曲: {data.get('name', 'Unknown')}", style="green")
+                self.console.print(f"   歌手: {data.get('artist', 'Unknown')}", style="green")
+                self.console.print(f"   大小: {data.get('file_size_formatted', '0MB')}", style="green")
+                self.console.print(f"   音质: {data.get('quality_name', quality)}", style="green")
+                self.console.print(f"   文件: {data.get('filename', 'Unknown')}", style="dim")
 
                 # 是否继续
                 continue_download = Confirm.ask(
@@ -378,11 +379,19 @@ class InteractiveShell:
                     self.search_music()
 
             else:
-                error_msg = result.get('message', '未知错误')
-                self.console.print(f"\n❌ 下载失败: {error_msg}", style="red")
+                error = result.get('error', {})
+                error_msg = error.get('message', result.get('message', '未知错误'))
+                error_type = error.get('type', 'UnknownError')
+
+                self.console.print(f"\n❌ 下载失败", style="bold red")
+                self.console.print(f"   错误类型: {error_type}", style="red")
+                self.console.print(f"   错误信息: {error_msg}", style="red")
 
         except Exception as e:
-            self.console.print(f"\n❌ 下载失败: {e}", style="red")
+            import traceback
+            self.console.print(f"\n❌ 下载失败: {e}", style="bold red")
+            if self.config_manager.get('show_notification', True):
+                self.console.print(f"详细错误:\n{traceback.format_exc()}", style="dim red")
 
     def download_playlist(self):
         """下载歌单"""
@@ -601,7 +610,7 @@ class InteractiveShell:
                     result = call_api(
                         "/download",
                         method="POST",
-                        data={"id": song_id, "level": quality}
+                        data={"id": song_id, "level": quality, "format": "json"}
                     )
 
                     if result.get('success'):
