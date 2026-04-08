@@ -319,6 +319,10 @@ class PlaylistScreen(Screen):
 
         # 显示音质选择对话框
         def on_quality_selected(quality):
+            # 如果用户按ESC取消，不执行下载
+            if quality is None:
+                return
+
             # 显示下载进度
             self.app_instance.push_screen(
                 DownloadProgressScreen(self.songs, quality)
@@ -409,6 +413,10 @@ class SettingsScreen(Screen):
         if event.list_view.index == 1:  # 修改默认音质
             # 显示音质选择对话框
             def on_quality_selected(quality):
+                # 如果用户按ESC取消（quality为None），不更新配置
+                if quality is None:
+                    return
+
                 self.current_quality = quality
                 self.app_instance.current_quality = quality
 
@@ -576,6 +584,10 @@ class AlbumScreen(Screen):
 
         # 显示音质选择对话框
         def on_quality_selected(quality):
+            # 如果用户按ESC取消，不执行下载
+            if quality is None:
+                return
+
             # 显示下载进度
             self.app_instance.push_screen(
                 DownloadProgressScreen(self.songs, quality)
@@ -694,6 +706,10 @@ class SearchScreen(Screen):
         """下载单首歌曲"""
         # 显示音质选择对话框
         def on_quality_selected(quality):
+            # 如果用户按ESC取消，不执行下载
+            if quality is None:
+                return
+
             client = APIClientWrapper.get_client()
             song_id = song.get('id')
 
