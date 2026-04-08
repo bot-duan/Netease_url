@@ -15,6 +15,7 @@ from typing import Optional, Dict, List
 from pathlib import Path
 
 from textual.app import App, ComposeResult
+from textual.screen import Screen
 from textual.widgets import (
     ListView, ListItem, Label, Header, Footer,
     Input, Button, ProgressBar, Static, DataTable
@@ -79,6 +80,7 @@ class QualitySelectionScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Vertical(id="quality-dialog"):
             yield Static("🎯 选择下载音质", id="quality-title")
+            yield Static("💡 提示: ↑↓选择 | Enter确认 | Esc取消", id="quality-hint")
             yield ListView(id="quality-list")
 
     def on_mount(self) -> None:
@@ -96,6 +98,12 @@ class QualitySelectionScreen(ModalScreen):
             if 0 <= index < len(self.qualities):
                 selected_quality = self.qualities[index][0]
                 self.dismiss(selected_quality)
+
+    def on_key(self, event: events.Key) -> None:
+        """处理按键事件"""
+        if event.key == "escape":
+            # ESC键关闭对话框
+            self.dismiss(None)
 
 
 class DownloadProgressScreen(ModalScreen):
@@ -178,8 +186,35 @@ class DownloadProgressScreen(ModalScreen):
 
 # ==================== Search Screen ====================
 
-class SearchScreen(ListView):
+class SearchScreen(Screen):
     """搜索屏幕"""
+
+    CSS = """
+    SearchScreen {
+        layout: vertical;
+    }
+    #search-title {
+        text-align: center;
+        text-style: bold;
+        padding: 1;
+    }
+    #search-input {
+        width: 1fr;
+        margin: 1 2;
+    }
+    #search-results {
+        height: 1fr;
+        margin: 0 2;
+    }
+    #search-info {
+        margin: 1 2;
+        text-style: bold;
+    }
+    #search-hint {
+        margin: 0 2;
+        text-style: dim;
+    }
+    """
 
     def __init__(self, app_instance):
         super().__init__()
@@ -192,6 +227,7 @@ class SearchScreen(ListView):
             placeholder="输入关键词后按Enter搜索",
             id="search-input"
         )
+        yield ListView(id="search-results")
         yield Label("", id="search-info")
         yield Label("💡 提示: Esc返回主菜单", id="search-hint")
 
@@ -218,15 +254,16 @@ class SearchScreen(ListView):
                 f"🔍 找到 {len(self.search_results)} 首歌曲"
             )
 
-            # 清空列表并添加结果
-            self.clear()
+            # 显示结果
+            results_list = self.query_one("#search-results", ListView)
+            results_list.clear()
 
             for idx, song in enumerate(self.search_results, 1):
                 name = song.get('name', 'Unknown')
                 artists = song.get('artists', 'Unknown')
 
                 item = ListItem(Label(f"{idx}. {name} - {artists}"))
-                self.append(item)
+                results_list.append(item)
         else:
             self.query_one("#search-info", Label).update("❌ 搜索失败")
 
@@ -237,6 +274,12 @@ class SearchScreen(ListView):
             if 0 <= index < len(self.search_results):
                 song = self.search_results[index]
                 self.download_song(song)
+
+    def on_key(self, event: events.Key) -> None:
+        """处理按键事件"""
+        if event.key == "escape":
+            # 按ESC返回主菜单
+            self.app.pop_screen()
 
     def download_song(self, song: Dict):
         """下载单首歌曲"""
@@ -377,6 +420,14 @@ class MusicTuiApp(App):
             QualitySelectionScreen(self.current_quality),
             on_quality_selected
         )
+
+    def on_key(self, event: events.Key) -> None:
+        """处理全局按键"""
+        if event.key == "escape":
+            # ESC键返回主菜单
+            # 如果当前有打开的Screen，关闭它
+            if self.screen_stack:
+                self.pop_screen()
 
     def show_settings_info(self):
         """显示设置信息"""
