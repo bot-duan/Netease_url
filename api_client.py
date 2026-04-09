@@ -223,7 +223,7 @@ class APIClient:
             method="POST",
             data={
                 "id": song_id,
-                "level": quality,
+                "quality": quality,  # 修复：使用正确的参数名
                 "format": return_format
             }
         )
