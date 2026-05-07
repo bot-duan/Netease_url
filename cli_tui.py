@@ -102,7 +102,7 @@ class QualitySelectionScreen(ModalScreen):
     def on_key(self, event: events.Key) -> None:
         """处理按键事件"""
         if event.key == "escape":
-            # ESC键关闭对话框
+            event.stop()  # 阻止ESC冒泡到下层Screen
             self.dismiss(None)
 
 
@@ -336,8 +336,8 @@ class PlaylistScreen(Screen):
     def on_key(self, event: events.Key) -> None:
         """处理按键事件"""
         if event.key == "escape":
-            # 按ESC返回主菜单
-            self.app.pop_screen()
+            if len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
 
 
 # ==================== Settings Screen ====================
@@ -450,8 +450,8 @@ class SettingsScreen(Screen):
     def on_key(self, event: events.Key) -> None:
         """处理按键事件"""
         if event.key == "escape":
-            # 按ESC返回主菜单
-            self.app.pop_screen()
+            if len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
 
 
 # ==================== Album Screen ====================
@@ -601,8 +601,8 @@ class AlbumScreen(Screen):
     def on_key(self, event: events.Key) -> None:
         """处理按键事件"""
         if event.key == "escape":
-            # 按ESC返回主菜单
-            self.app.pop_screen()
+            if len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
 
 
 # ==================== Search Screen ====================
@@ -699,8 +699,8 @@ class SearchScreen(Screen):
     def on_key(self, event: events.Key) -> None:
         """处理按键事件"""
         if event.key == "escape":
-            # 按ESC返回主菜单
-            self.app.pop_screen()
+            if len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
 
     def download_song(self, song: Dict):
         """下载单首歌曲"""
