@@ -1,10 +1,15 @@
 services:
   netease-url:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     env_file:
       - .env
     ports:
       - "5023:5023"
+    environment:
+      NETEASE_PORT: 5023
+      NETEASE_DOWNLOADS_DIR: /app/downloads
+      NETEASE_COOKIE_FILE: /app/data/cookie.txt
+    volumes:
+      - ./downloads:/app/downloads
+      - ./cookie.txt:/app/data/cookie.txt
     restart: unless-stopped

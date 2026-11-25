@@ -44,6 +44,7 @@
 - `jyeffect`：高清环绕声
 - `sky`：沉浸环绕声
 - `jymaster`：超清母带
+- `dolby`：杜比全景声
 
 ### 🌐 使用方式
 - **Web界面**：直观友好的网页操作界面
@@ -84,15 +85,17 @@ uv --version
 #### 3. 安装项目依赖
 ```bash
 # uv会自动创建虚拟环境并安装所有依赖
-uv sync
+uv sync --locked
 ```
 
 #### 4. 配置Cookie
-在 `cookie.txt` 文件中填入黑胶会员账号的Cookie：
+运行 `uv run python qr_login.py login` 保存登录 Cookie，或将自己的 Cookie 写入 `cookie.txt`。
 
 > 💡 **获取Cookie方法**：登录网易云音乐网页版 → F12开发者工具 → Network标签页 → 复制任意请求的Cookie值
 
-#### 5. 启动服务
+#### 5. 选择使用方式
+
+使用终端问答时直接运行 `uv run python cli.py`。使用网页或 HTTP API 时启动服务。
 ```bash
 # 使用uv运行
 uv run python main.py
@@ -110,12 +113,10 @@ chmod +x run.sh
 ### 🐳 Docker部署
 
 ```bash
-# 使用Docker Compose
-docker-compose up -d
-
-# 或使用Docker
-docker build -t netease-music-api .
-docker run -d -p 5000:5000 netease-music-api
+# 先准备配置和 Cookie 文件
+cp -n .env.example .env
+touch cookie.txt
+docker compose up -d --build
 ```
 
 ---
@@ -156,9 +157,17 @@ docker run -d -p 5000:5000 netease-music-api
 3. 选择音质（标准/极高/无损/Hi-Res等）
 4. 点击**下载**按钮
 
-### CLI命令行使用（新功能！）
+### 交互式终端
 
-专为**自动化脚本**和**AI调用**优化的命令行接口，默认输出JSON格式，支持标准化退出码。
+运行 `uv run python cli.py` 或 `uv run python cli.py -i`，按提示搜索歌曲、打开歌单或专辑，再按编号选歌。支持 `1,3`、`1-5`，歌单和专辑也可以输入 `all` 全选并确认下载。
+
+确认时直接按 Enter 用默认音质下载，输入 `q` 可为本轮换音质。下载完成后会显示实际音质和保存路径，失败项可以单独重试。下载期间按 Ctrl+C 取消当前下载及本轮剩余歌曲，返回菜单。
+
+交互模式直接使用本地 Cookie 和下载目录，无需启动 HTTP 服务。可用全局选项 `--cookie FILE` 和 `--downloads-dir DIR` 覆盖默认路径。
+
+### CLI命令行使用
+
+普通 CLI 直接调用本地业务模块，无需启动服务。默认输出 JSON，并使用标准化退出码。
 
 #### 基本语法
 
@@ -181,7 +190,8 @@ uv run python cli.py <command> [arguments] [options]
 
 ```bash
 --output FORMAT    输出格式：json（默认）或 human
---cookie FILE      指定Cookie文件路径
+--cookie FILE      指定 Cookie 文件路径
+--downloads-dir DIR  指定下载目录
 --verbose          输出详细日志到stderr
 --quiet            静默模式，不输出日志
 ```
@@ -236,7 +246,7 @@ uv run python cli.py --output human search "周杰伦"
 uv run python cli.py download 185668
 
 # 仅获取下载信息（不下载文件）
-uv run python cli.py download 185668 --format json
+uv run python cli.py download 185668 --format info
 
 # 指定音质下载
 uv run python cli.py download 185668 --quality hires
@@ -323,7 +333,7 @@ https://music.163.com/#/album?id=1234567890
 ## 🔌 API接口文档
 
 ### 基础信息
-- **Base URL**: `http://localhost:5000`
+- **Base URL**: `http://localhost:5023`
 - **请求方式**: GET / POST
 - **响应格式**: JSON
 
@@ -336,8 +346,14 @@ GET /health
 **响应示例**:
 ```json
 {
-  "status": "ok",
-  "message": "Service is running"
+  "status": 200,
+  "success": true,
+  "message": "API服务运行正常",
+  "data": {
+    "service": "running",
+    "cookie_status": "valid",
+    "cookie_check": "local_format_only"
+  }
 }
 ```
 
@@ -354,20 +370,15 @@ Content-Type: application/json
 **响应示例**:
 ```json
 {
-  "code": 200,
-  "result": {
-    "songs": [
-      {
-        "id": 185668,
-        "name": "稻香",
-        "artists": ["周杰伦"],
-        "album": "魔杰座",
-        "duration": 223000
-      }
-    ]
-  }
+  "status": 200,
+  "success": true,
+  "message": "success",
+  "data": [{"id": 185668, "name": "稻香", "artists": "周杰伦", "album": "魔杰座"}],
+  "pagination": {"total": 1, "returned": 1, "offset": 0, "type": "1"}
 }
 ```
+
+搜索支持 `offset` 分页和 `type` 参数。类型 `1` 返回歌曲数组，`10`、`100`、`1000` 分别在 `data` 中返回 `albums`、`artists`、`playlists`。
 
 #### 3. 单曲解析
 ```http
@@ -409,11 +420,14 @@ Content-Type: application/json
   "quality": "lossless"
 }
 ```
-**响应**: 直接返回音频文件流
+`format=file` 下载并返回音频文件，`format=json` 下载并返回保存路径等信息，`format=info` 只查询下载信息。
+普通 CLI 的旧选项 `--format json` 仍表示只查询信息。`info` 在 HTTP 和 CLI 中的含义相同。
+
+后台下载使用 `POST /downloads/jobs` 提交，`GET /downloads/jobs/<id>` 查询进度，`POST /downloads/jobs/<id>/cancel` 取消。任务状态保存在服务进程内，重启后会清空。
 
 ---
 
-## 音质参数说明（仅限单曲解析）
+## 音质参数说明
 
 - `standard`：标准音质
 - `exhigh`：极高音质
@@ -422,28 +436,31 @@ Content-Type: application/json
 - `jyeffect`：高清环绕声
 - `sky`：沉浸环绕声
 - `jymaster`：超清母带
+- `dolby`：杜比全景声
 
 > 黑胶VIP音质：standard, exhigh, lossless, hires, jyeffect  
 > 黑胶SVIP音质：sky, jymaster
 
 ---
 
-## Docker 一键部署
+## 服务配置
 
-1. **修改参数**
+本地运行时导出环境变量。Docker Compose 从 `.env` 读取配置，示例见 `.env.example`。
 
-   - 如需修改端口，请编辑 `.env` 或 `docker-compose.yml` 文件中的 `ports` 配置，例如：
+| 环境变量 | 默认值 | 用途 |
+|---|---|---|
+| `NETEASE_COOKIE_FILE` | `cookie.txt` | Cookie 文件路径，扫码登录也使用此路径 |
+| `NETEASE_DOWNLOADS_DIR` | `downloads` | 音频文件保存目录 |
+| `NETEASE_HOST` / `NETEASE_PORT` | `0.0.0.0` / `5023` | HTTP 监听地址和端口 |
+| `NETEASE_DEFAULT_QUALITY` | `lossless` | 默认请求音质 |
+| `NETEASE_REQUEST_TIMEOUT` | `30` | 上游请求及 Python HTTP 客户端的普通请求超时（秒） |
+| `NETEASE_DOWNLOAD_TIMEOUT` | `600` | HTTP 客户端同步下载等待时间（秒） |
+| `NETEASE_MAX_CONCURRENT` | `3` | 后台下载任务并发数 |
+| `NETEASE_MAX_FILE_SIZE` | `524288000` | 单个音频文件的大小上限（字节） |
 
-     ```yaml
-     ports:
-       - "8080:5000"
-     ```
+Compose 将当前目录的 `cookie.txt` 和 `downloads/` 挂载进容器。需要更换主机端口时，修改 Compose 的端口映射，例如 `8080:5023`。
 
-2. **启动服务**
-
-   ```bash
-   docker-compose up -d
-   ```
+使用 `uv run --locked python -m pytest -q` 运行离线回归测试。
 
 ---
 
@@ -456,7 +473,7 @@ Content-Type: application/json
 ## 注意事项
 
 - 必须使用黑胶会员账号的 Cookie 才能解析高音质资源。
-- Cookie 格式请严格按照 `cookie.txt` 示例填写。
+- Cookie 保存在本地。关于扫码登录和配置方法，见 [使用文档](使用文档.md)。
 
 ---
 

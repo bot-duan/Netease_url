@@ -3,9 +3,18 @@
 [![Version](https://img.shields.io/badge/version-2.0.0-blue)](./README.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-专为**自动化脚本**和**AI调用**优化的网易云音乐命令行接口。
+网易云音乐命令行工具，支持逐步交互，也支持脚本通过子命令获取 JSON。
 
 ---
+
+## 逐步交互
+
+运行 `uv run python cli.py`，或用 `uv run python cli.py -i` 显式进入。交互模式和普通子命令都直接调用本地业务层。
+
+1. 选搜索歌曲、下载歌单或下载专辑。
+2. 输入关键词、ID 或链接，再输入当前页的编号。用 `n` 或 `p` 翻页，用 `b` 返回。歌单和专辑支持 `all` 全选。
+3. 按 Enter 确认下载，或输入 `q` 更换本轮音质。下载期间按 Ctrl+C 取消本轮，并返回菜单。
+4. 查看保存路径，按提示决定是否重试失败歌曲。
 
 ## 📖 目录
 
@@ -51,14 +60,14 @@ uv --version
 ### 基本语法
 
 ```bash
-uv run uv run python cli.py <command> [arguments] [options]
+uv run python cli.py <command> [arguments] [options]
 ```
 
 ### 第一个命令
 
 ```bash
-# 检查服务状态
-uv run uv run python cli.py health
+# 检查本地 CLI 和 Cookie 格式
+uv run python cli.py health
 
 # 输出示例：
 {
@@ -68,9 +77,11 @@ uv run uv run python cli.py health
     "service": "running",
     "timestamp": 1730376000,
     "cookie_status": "valid",
+    "cookie_check": "local_format_only",
+    "downloads_dir": "/path/to/downloads",
     "version": "2.0.0"
   },
-  "message": "API服务运行正常"
+  "message": "操作成功"
 }
 ```
 
@@ -78,11 +89,11 @@ uv run uv run python cli.py health
 
 ```bash
 # 查看所有命令
-uv run uv run python cli.py --help
+uv run python cli.py --help
 
 # 查看特定命令的帮助
-uv run uv run python cli.py song --help
-uv run uv run python cli.py download --help
+uv run python cli.py song --help
+uv run python cli.py download --help
 ```
 
 ---
@@ -91,7 +102,7 @@ uv run uv run python cli.py download --help
 
 ### health - 健康检查
 
-检查API服务运行状态和Cookie有效性。
+检查本地 CLI 初始化和 Cookie 格式。HTTP 服务可以通过 `GET /health` 单独检查。
 
 #### 语法
 
@@ -167,7 +178,7 @@ uv run python cli.py song 185668
     "type": "flac",
     "bitrate": 0
   },
-  "message": "获取歌曲URL成功"
+  "message": "操作成功"
 }
 ```
 
@@ -192,7 +203,7 @@ uv run python cli.py song 185668 --type name
       }
     ]
   },
-  "message": "获取歌曲信息成功"
+  "message": "操作成功"
 }
 ```
 
@@ -274,7 +285,7 @@ uv run python cli.py --output human search "周杰伦" --limit 5
 
 **输出示例：**
 ```
-✓ 搜索完成
+✓ 操作成功
 ==================================================
 result:
   songs:
@@ -378,7 +389,7 @@ uv run python cli.py download <歌曲ID或URL> [options]
 | 选项 | 说明 | 默认值 | 可选值 |
 |------|------|--------|--------|
 | --quality | 音质等级 | lossless | standard, exhigh, lossless, hires, sky, jyeffect, jymaster, dolby |
-| --format | 返回格式 | file | file（下载文件）, json（仅返回信息） |
+| --format | 下载或查询 | file | file（下载文件）、info（只查询）、json（只查询的旧选项） |
 
 #### 示例
 
@@ -394,27 +405,31 @@ uv run python cli.py download 185668
   "success": true,
   "code": 0,
   "data": {
-    "music_id": 185668,
+    "music_id": "185668",
     "name": "稻香",
     "artist": "周杰伦",
     "album": "魔杰座",
     "quality": "lossless",
+    "requested_quality": "lossless",
     "quality_name": "无损音质",
     "file_type": "flac",
     "file_size": 19398656,
     "file_size_formatted": "18.50MB",
-    "file_path": "/path/to/downloads/周杰伦 - 稻香.flac",
-    "filename": "周杰伦 - 稻香.flac",
-    "duration": 223
+    "file_path": "/path/to/downloads/周杰伦 - 稻香 [185668-lossless].flac",
+    "filename": "周杰伦 - 稻香 [185668-lossless].flac",
+    "duration": 223,
+    "warnings": []
   },
-  "message": "下载完成"
+  "message": "操作成功"
 }
 ```
 
-##### 2. 仅获取下载信息（不下载文件）
+##### 2. 仅获取下载信息
+
+旧版 CLI 选项 `--format json` 仍可用于此操作。
 
 ```bash
-uv run python cli.py download 185668 --format json
+uv run python cli.py download 185668 --format info
 ```
 
 **返回：**
@@ -430,11 +445,12 @@ uv run python cli.py download 185668 --format json
       "artist": "周杰伦",
       "album": "魔杰座",
       "quality": "lossless",
+      "requested_quality": "lossless",
       "url": "https://music.126.net/...",
       "file_size": 19398656
     }
   },
-  "message": "获取下载信息成功"
+  "message": "操作成功"
 }
 ```
 
@@ -463,6 +479,7 @@ done
 | 选项 | 说明 | 示例 |
 |------|------|------|
 | `--output FORMAT` | 输出格式：json（默认）或 human | `--output human` |
+| `--downloads-dir DIR` | 指定普通 CLI 的保存目录 | `--downloads-dir ./music` |
 | `--cookie FILE` | 指定Cookie文件路径 | `--cookie /path/to/cookie.txt` |
 | `--verbose` | 输出详细日志到stderr | `--verbose` |
 | `--quiet` | 静默模式，不输出日志 | `--quiet` |
@@ -500,7 +517,7 @@ uv run python cli.py song 185668
 {
   "success": true,
   "code": 0,
-  "data": { ... },
+  "data": {},
   "message": "操作成功"
 }
 ```
@@ -669,17 +686,7 @@ print(json.dumps(data, indent=2, ensure_ascii=False))
 
 ### 1. Cookie无效怎么办？
 
-**错误信息：**
-```json
-{
-  "success": false,
-  "code": 4,
-  "error": {
-    "type": "AuthenticationError",
-    "message": "Cookie无效或已过期"
-  }
-}
-```
+运行 `uv run python cli.py health` 查看 `data.cookie_status`。`valid` 表示本地字段检查通过，在线登录状态和音质权限仍以实际请求为准。
 
 **解决方法：**
 ```bash
@@ -692,17 +699,7 @@ uv run python cli.py --cookie /path/to/your/cookie.txt song 185668
 
 ### 2. 歌曲无法下载？
 
-**错误信息：**
-```json
-{
-  "success": false,
-  "code": 1,
-  "error": {
-    "type": "DownloadNotAllowedError",
-    "message": "无法下载，可能原因：版权限制或音质不支持"
-  }
-}
-```
+查看 JSON 的 `error.message`，其中会报告上游请求、下载或文件校验失败的原因。
 
 **解决方法：**
 - 尝试降低音质（如从 `hires` 改为 `lossless`）

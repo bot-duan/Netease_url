@@ -14,6 +14,7 @@ import argparse
 import sys
 import json
 
+from config import QUALITY_NAMES
 from cli import CLICommand, CLIException, JSONFormatter, HumanFormatter, ExitCode
 
 
@@ -34,7 +35,7 @@ def main():
     # 全局选项
     parser.add_argument(
         '--cookie',
-        help='Cookie文件路径或字符串'
+        help='Cookie文件路径'
     )
     parser.add_argument(
         '--verbose',
@@ -50,14 +51,16 @@ def main():
         '--output',
         choices=['json', 'human'],
         default='json',
-        help='输出格式（默认json，适用于自动化/AI调用）'
+        help='子命令输出格式（默认 JSON）'
     )
+
+    parser.add_argument('--downloads-dir', help='下载目录')
 
     # 子命令
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
 
     # health命令
-    health_parser = subparsers.add_parser('health', help='健康检查')
+    subparsers.add_parser('health', help='健康检查')
 
     # song命令
     song_parser = subparsers.add_parser('song', help='获取歌曲信息')
@@ -67,8 +70,8 @@ def main():
     )
     song_parser.add_argument(
         '--level',
-        default='lossless',
-        choices=['standard', 'exhigh', 'lossless', 'hires', 'sky', 'jyeffect', 'jymaster', 'dolby'],
+        default=None,
+        choices=list(QUALITY_NAMES),
         help='音质等级'
     )
     song_parser.add_argument(
@@ -126,58 +129,41 @@ def main():
     )
     download_parser.add_argument(
         '--quality',
-        default='lossless',
-        choices=['standard', 'exhigh', 'lossless', 'hires', 'sky', 'jyeffect', 'jymaster', 'dolby'],
+        default=None,
+        choices=list(QUALITY_NAMES),
         help='音质等级'
     )
     download_parser.add_argument(
         '--format',
         dest='return_format',
         default='file',
-        choices=['file', 'json'],
+        choices=['file', 'json', 'info'],
         help='file-下载文件到本地, json-仅返回下载信息'
     )
 
     # 解析参数
     args = parser.parse_args()
 
-    # 判断是否进入交互模式
-    # 条件：显式指定-i/--interactive，或者没有提供任何参数
-    if args.interactive or len(sys.argv) == 1:
-        # Textual TUI交互模式
-        try:
-            from cli_tui import MusicTuiApp
-            app = MusicTuiApp()
-            app.run()
-            sys.exit(ExitCode.SUCCESS)
-        except ImportError as e:
-            error_result = JSONFormatter.error(
-                ExitCode.SYSTEM_ERROR,
-                "ImportError",
-                f"无法导入TUI模块: {e}。请确保已安装textual库: uv sync"
-            )
-            print(json.dumps(error_result, ensure_ascii=False, indent=2))
-            sys.exit(ExitCode.SYSTEM_ERROR)
-        except Exception as e:
-            error_result = JSONFormatter.error(
-                ExitCode.SYSTEM_ERROR,
-                "TUIError",
-                f"TUI启动失败: {e}"
-            )
-            print(json.dumps(error_result, ensure_ascii=False, indent=2))
-            sys.exit(ExitCode.SYSTEM_ERROR)
-
-    # AI模式：如果没有指定命令，显示帮助
+    # Options such as --cookie and --downloads-dir work in both modes.
+    if args.interactive and args.command:
+        parser.error('--interactive 不能与子命令同时使用')
     if not args.command:
-        parser.print_help()
-        sys.exit(ExitCode.PARAMETER_ERROR)
+        try:
+            from cli_interactive import InteractiveShell
+            cli = CLICommand(cookie_file=args.cookie, verbose=args.verbose,
+                             quiet=args.quiet, downloads_dir=args.downloads_dir)
+        except (ImportError, OSError, ValueError) as exc:
+            print(f'交互模式启动失败：{exc}', file=sys.stderr)
+            sys.exit(ExitCode.SYSTEM_ERROR)
+        sys.exit(InteractiveShell(cli.service).run())
 
     # 创建CLI实例
     try:
         cli = CLICommand(
             cookie_file=args.cookie,
             verbose=args.verbose,
-            quiet=args.quiet
+            quiet=args.quiet,
+            downloads_dir=args.downloads_dir
         )
     except Exception as e:
         error_result = JSONFormatter.error(

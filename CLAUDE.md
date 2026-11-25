@@ -1,92 +1,36 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## 项目概述
-
-网易云音乐无损解析工具，提供歌曲搜索、单曲解析、歌单解析、专辑解析和音乐下载功能。支持多种音质（标准、极高、无损、Hi-Res、杜比全景声等）。
-
-## 核心架构
-
-### 模块结构
-```
-music_api.py        - 网易云音乐API封装（加密、请求处理、音质枚举）
-cookie_manager.py   - Cookie管理和验证
-music_downloader.py - 音乐文件下载和标签写入
-qr_login.py        - 二维码登录功能
-main.py            - Flask API服务主入口
-templates/index.html - Web前端界面
-```
-
-### 关键设计模式
-- **APIConstants**: 统一管理API端点和加密密钥
-- **CryptoUtils**: AES加密参数处理（网易云eapi接口必需）
-- **QualityLevel枚举**: 定义支持的所有音质类型（standard/exhigh/lossless/hires/sky/jyeffect/jymaster/dolby）
-- **Cookie管理**: 重要Cookie字段验证（MUSIC_U, MUSIC_A, __csrf等）
+本项目提供网易云音乐搜索、歌曲详情与歌词、歌单和专辑解析，以及音频下载。终端交互使用 Rich 逐步问答。
 
 ## 开发命令
 
-### 启动服务
 ```bash
-# 直接启动（默认端口5023）
-python main.py
-
-# 使用环境变量
-LEVEL=lossless MODE=api URL=http://127.0.0.1:5023 python main.py
-
-# Docker方式
-docker-compose up -d
+uv sync --locked
+uv run --locked python -m pytest -q
+uv run python cli.py                       # 逐步问答
+uv run python cli.py health                # 本地 CLI 健康检查
+uv run python main.py                      # HTTP 服务，默认端口 5023
+NETEASE_HOST=127.0.0.1 uv run python main.py
+uv run python qr_login.py login
 ```
 
-### 依赖安装
-```bash
-pip install -r requirements.txt
-```
+本地配置使用 `NETEASE_*` 环境变量，见 [README 的服务配置](README.md#服务配置)。Docker Compose 使用 `.env` 和挂载的 `cookie.txt`，启动方式见 [使用文档](使用文档.md#-docker部署)。服务日志输出到控制台，日志级别由 `NETEASE_LOG_LEVEL` 控制。
 
-### 二维码登录
-```bash
-python qr_login.py
-```
+## 模块与调用关系
 
-## API端点
+| 模块 | 职责 |
+|---|---|
+| `cli.py`、`cli/commands.py` | 子命令解析、JSON 输出和退出码 |
+| `cli_interactive.py` | Rich 问答、翻页、按编号选歌、下载进度和失败重试 |
+| `music_service.py`、`config.py` | CLI 和 HTTP 共享的业务逻辑、参数校验、配置与音质选项 |
+| `music_api.py` | 上游接口请求、eapi 参数加密和响应解析 |
+| `music_downloader.py` | 流式下载、完整性校验、缓存和音频标签 |
+| `cookie_manager.py`、`qr_login.py` | 本地 Cookie 读写和扫码登录 |
+| `main.py`、`templates/index.html` | Flask 路由与网页 |
+| `download_jobs.py`、`api_client.py` | HTTP 后台任务和 Python 客户端 |
 
-| 端点 | 方法 | 功能 |
-|------|------|------|
-| `/health` | GET | 健康检查 |
-| `/song` | GET/POST | 获取歌曲信息（支持type参数：url/name/lyric/json） |
-| `/search` | GET/POST | 搜索音乐 |
-| `/playlist` | GET/POST | 获取歌单详情 |
-| `/album` | GET/POST | 获取专辑详情 |
-| `/download` | GET/POST | 下载音乐（支持format参数：file/json） |
+普通 CLI 和交互 CLI 都直接调用本地业务层。HTTP 保留 `/Song_V1`、`/Search`、`/Playlist`、`/Album` 和 `/Download` 兼容路由。更改下载行为时，注意 HTTP 的 `format=json` 会下载文件，CLI 的旧版 `--format json` 仅查询信息。两端统一使用 `info` 表示只查询。
 
-## 重要配置
+下载器先写临时文件，通过大小检查后写标签并发布正式文件。复用缓存时会校验文件记录和哈希。文件身份由歌曲 ID、上游返回的实际音质和格式决定。后台任务状态只保存在单个 HTTP 服务进程中。
 
-- Cookie文件: `cookie.txt`（黑胶会员必需）
-- 下载目录: `downloads/`
-- 日志文件: `music_api.log`
-- 环境配置: `.env`
-
-## 音质等级说明
-
-- **标准音质**: standard (128kbps)
-- **极高音质**: exhigh (320kbps)
-- **无损音质**: lossless (FLAC)
-- **Hi-Res**: hires (24bit/96kHz)
-- **VIP专属**: sky, jyeffect
-- **SVIP专属**: jymaster, dolby
-
-## 加密机制
-
-网易云音乐eapi接口需要AES加密：
-- 密钥: `e82ckenh8dichen8`（常量定义在APIConstants中）
-- 加密流程: MD5哈希 → AES-ECB加密 → Base64编码
-- 详见`CryptoUtils.encrypt_params()`
-
-## 向后兼容
-
-API保留旧端点别名：
-- `/Song_V1` → `/song`
-- `/Search` → `/search`
-- `/Playlist` → `/playlist`
-- `/Album` → `/album`
-- `/Download` → `/download`
+测试在 `tests/` 中，使用模拟上游响应和临时目录，无需真实 Cookie。

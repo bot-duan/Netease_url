@@ -63,7 +63,8 @@ class CookieManager:
     def _ensure_cookie_file_exists(self) -> None:
         """确保Cookie文件存在"""
         if not self.cookie_file.exists():
-            self.cookie_file.touch()
+            self.cookie_file.parent.mkdir(parents=True, exist_ok=True)
+            self.cookie_file.touch(mode=0o600)
             self.logger.info(f"创建Cookie文件: {self.cookie_file}")
     
     def read_cookie(self) -> str:

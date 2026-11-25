@@ -2,12 +2,13 @@
 """
 API客户端模块
 
-统一的API调用接口，供CLI、TUI、Web等各个模块使用。
+网易云音乐 HTTP 服务的 Python 客户端。
 """
 
+import os
+import threading
 import requests
 from typing import Optional, Dict, List, Any
-from pathlib import Path
 
 
 class APIClientConfig:
@@ -15,13 +16,13 @@ class APIClientConfig:
 
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1:5023",
-        timeout: int = 30,
-        max_retries: int = 3
+        base_url: str = None,
+        timeout: int = None,
+        download_timeout: int = None
     ):
-        self.base_url = base_url
-        self.timeout = timeout
-        self.max_retries = max_retries
+        self.base_url = (base_url or os.environ.get("NETEASE_API_URL", "http://127.0.0.1:5023")).rstrip("/")
+        self.timeout = timeout or int(os.environ.get("NETEASE_REQUEST_TIMEOUT", "30"))
+        self.download_timeout = download_timeout or int(os.environ.get("NETEASE_DOWNLOAD_TIMEOUT", "600"))
 
 
 class APIClient:
@@ -35,17 +36,22 @@ class APIClient:
             config: API客户端配置，默认使用标准配置
         """
         self.config = config or APIClientConfig()
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'NeteaseMusic-CLI/2.0'
-        })
+        self._local = threading.local()
+
+    @property
+    def session(self):
+        if not hasattr(self._local, 'session'):
+            self._local.session = requests.Session()
+            self._local.session.headers.update({'User-Agent': 'NeteaseMusic-CLI/2.0'})
+        return self._local.session
 
     def _make_request(
         self,
         endpoint: str,
         method: str = "GET",
         params: Dict = None,
-        data: Dict = None
+        data: Dict = None,
+        timeout: int = None
     ) -> Dict:
         """
         执行HTTP请求
@@ -66,18 +72,28 @@ class APIClient:
                 response = self.session.get(
                     url,
                     params=params,
-                    timeout=self.config.timeout
+                    timeout=timeout or self.config.timeout
                 )
             else:  # POST
                 response = self.session.post(
                     url,
                     params=params,
                     json=data,
-                    timeout=self.config.timeout
+                    timeout=timeout or self.config.timeout
                 )
 
-            response.raise_for_status()
-            return response.json()
+            try:
+                payload = response.json()
+            except ValueError:
+                response.raise_for_status()
+                raise ValueError('服务返回了非 JSON 数据')
+            if not isinstance(payload, dict):
+                raise ValueError('服务返回了无效的数据格式')
+            if not response.ok or not payload.get('success', True):
+                payload['success'] = False
+                payload.setdefault('error', {'type': payload.get('error_code', 'HTTPError'),
+                                             'message': payload.get('message', f'HTTP错误: {response.status_code}')})
+            return payload
 
         except requests.exceptions.ConnectionError:
             return {
@@ -225,8 +241,22 @@ class APIClient:
                 "id": song_id,
                 "quality": quality,  # 修复：使用正确的参数名
                 "format": return_format
-            }
+            },
+            timeout=self.config.download_timeout
         )
+
+    def download_info(self, song_id, quality="lossless"):
+        return self.download(song_id, quality, return_format="info")
+
+    def start_download(self, song_id, quality="lossless"):
+        return self._make_request('/downloads/jobs', method='POST',
+                                  data={'id': song_id, 'quality': quality})
+
+    def download_status(self, job_id):
+        return self._make_request(f'/downloads/jobs/{job_id}')
+
+    def cancel_download(self, job_id):
+        return self._make_request(f'/downloads/jobs/{job_id}/cancel', method='POST')
 
     def check_connection(self) -> bool:
         """

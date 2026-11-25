@@ -7,6 +7,7 @@
 - 用户友好的交互界面
 """
 
+import os
 import sys
 import time
 import logging
@@ -276,7 +277,7 @@ def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    client = QRLoginClient()
+    client = QRLoginClient(os.environ.get('NETEASE_COOKIE_FILE', 'cookie.txt'))
     
     # 解析命令行参数
     if len(sys.argv) > 1:

@@ -48,3 +48,6 @@ Thumbs.db
 
 # uv Python版本指示符（本地环境）
 .python-version
+
+# Local terminal preferences
+config.json

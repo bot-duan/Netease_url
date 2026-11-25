@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from hashlib import md5
 from enum import Enum
 
+import threading
 import requests
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -105,8 +106,17 @@ class CryptoUtils:
 class HTTPClient:
     """HTTP客户端类"""
     
-    @staticmethod
-    def post_request(url: str, params: str, cookies: Dict[str, str]) -> str:
+    def __init__(self, timeout=30):
+        self.timeout = timeout
+        self._local = threading.local()
+
+    @property
+    def session(self):
+        if not hasattr(self._local, 'session'):
+            self._local.session = requests.Session()
+        return self._local.session
+
+    def post_request(self, url: str, params: str, cookies: Dict[str, str]) -> str:
         """发送POST请求并返回文本响应"""
         headers = {
             'User-Agent': APIConstants.USER_AGENT,
@@ -117,15 +127,14 @@ class HTTPClient:
         request_cookies.update(cookies)
         
         try:
-            response = requests.post(url, headers=headers, cookies=request_cookies, 
-                                   data={"params": params}, timeout=30)
+            response = self.session.post(url, headers=headers, cookies=request_cookies,
+                                   data={"params": params}, timeout=self.timeout)
             response.raise_for_status()
             return response.text
         except requests.RequestException as e:
             raise APIException(f"HTTP请求失败: {e}")
     
-    @staticmethod
-    def post_request_full(url: str, params: str, cookies: Dict[str, str]) -> requests.Response:
+    def post_request_full(self, url: str, params: str, cookies: Dict[str, str]) -> requests.Response:
         """发送POST请求并返回完整响应对象"""
         headers = {
             'User-Agent': APIConstants.USER_AGENT,
@@ -136,8 +145,8 @@ class HTTPClient:
         request_cookies.update(cookies)
         
         try:
-            response = requests.post(url, headers=headers, cookies=request_cookies, 
-                                   data={"params": params}, timeout=30)
+            response = self.session.post(url, headers=headers, cookies=request_cookies,
+                                   data={"params": params}, timeout=self.timeout)
             response.raise_for_status()
             return response
         except requests.RequestException as e:
@@ -152,10 +161,18 @@ class APIException(Exception):
 class NeteaseAPI:
     """网易云音乐API主类"""
     
-    def __init__(self):
-        self.http_client = HTTPClient()
+    def __init__(self, timeout=30):
+        self.timeout = timeout
+        self._local = threading.local()
+        self.http_client = HTTPClient(timeout=timeout)
         self.crypto_utils = CryptoUtils()
-    
+
+    @property
+    def session(self):
+        if not hasattr(self._local, 'session'):
+            self._local.session = requests.Session()
+        return self._local.session
+
     def get_song_url(self, song_id: int, quality: str, cookies: Dict[str, str]) -> Dict[str, Any]:
         """获取歌曲播放URL
         
@@ -209,7 +226,7 @@ class NeteaseAPI:
         """
         try:
             data = {'c': json.dumps([{"id": song_id, "v": 0}])}
-            response = requests.post(APIConstants.SONG_DETAIL_V3, data=data, timeout=30)
+            response = self.session.post(APIConstants.SONG_DETAIL_V3, data=data, timeout=self.timeout)
             response.raise_for_status()
             
             result = response.json()
@@ -253,8 +270,8 @@ class NeteaseAPI:
                 'Referer': APIConstants.REFERER
             }
             
-            response = requests.post(APIConstants.LYRIC_API, data=data, 
-                                   headers=headers, cookies=cookies, timeout=30)
+            response = self.session.post(APIConstants.LYRIC_API, data=data,
+                                   headers=headers, cookies=cookies, timeout=self.timeout)
             response.raise_for_status()
             
             result = response.json()
@@ -267,52 +284,36 @@ class NeteaseAPI:
         except json.JSONDecodeError as e:
             raise APIException(f"解析歌词响应失败: {e}")
     
-    def search_music(self, keywords: str, cookies: Dict[str, str], limit: int = 10) -> List[Dict[str, Any]]:
-        """搜索音乐
-        
-        Args:
-            keywords: 搜索关键词
-            cookies: 用户cookies
-            limit: 返回数量限制
-            
-        Returns:
-            歌曲信息列表
-            
-        Raises:
-            APIException: API调用失败时抛出
-        """
+    def search(self, keywords, cookies, limit=10, offset=0, search_type='1'):
+        data = {'s': keywords, 'type': int(search_type), 'limit': limit, 'offset': offset}
         try:
-            data = {'s': keywords, 'type': 1, 'limit': limit}
-            headers = {
-                'User-Agent': APIConstants.USER_AGENT,
-                'Referer': APIConstants.REFERER
-            }
-            
-            response = requests.post(APIConstants.SEARCH_API, data=data, 
-                                   headers=headers, cookies=cookies, timeout=30)
+            response = self.session.post(APIConstants.SEARCH_API, data=data,
+                headers={'User-Agent': APIConstants.USER_AGENT, 'Referer': APIConstants.REFERER},
+                cookies=cookies, timeout=self.timeout)
             response.raise_for_status()
-            
-            result = response.json()
-            if result.get('code') != 200:
-                raise APIException(f"搜索失败: {result.get('message', '未知错误')}")
-            
-            songs = []
-            for item in result.get('result', {}).get('songs', []):
-                song_info = {
-                    'id': item['id'],
-                    'name': item['name'],
-                    'artists': '/'.join(artist['name'] for artist in item['ar']),
-                    'album': item['al']['name'],
-                    'picUrl': item['al']['picUrl']
-                }
-                songs.append(song_info)
-            
-            return songs
-        except requests.RequestException as e:
-            raise APIException(f"搜索请求失败: {e}")
-        except (json.JSONDecodeError, KeyError) as e:
-            raise APIException(f"解析搜索响应失败: {e}")
-    
+            payload = response.json()
+            if payload.get('code') != 200:
+                raise APIException(f"搜索失败: {payload.get('message', '未知错误')}")
+            result = payload.get('result') or {}
+            key, count_key = {'1': ('songs', 'songCount'), '10': ('albums', 'albumCount'),
+                              '100': ('artists', 'artistCount'), '1000': ('playlists', 'playlistCount')}[str(search_type)]
+            items = result.get(key) or []
+            if str(search_type) == '1':
+                items = [{'id': song['id'], 'name': song.get('name', ''),
+                          'artists': '/'.join(a['name'] for a in song.get('ar', song.get('artists', []))),
+                          'album': song.get('al', song.get('album', {})).get('name', ''),
+                          'picUrl': song.get('al', song.get('album', {})).get('picUrl', ''),
+                          'duration': song.get('dt', song.get('duration', 0))} for song in items]
+                for song in items:
+                    song['artist_string'] = song['artists']
+            return {key: items, 'total': result.get(count_key, len(items)),
+                    'returned': len(items), 'offset': offset, 'type': str(search_type)}
+        except (requests.RequestException, ValueError, KeyError) as exc:
+            raise APIException(f"搜索请求失败: {exc}") from exc
+
+    def search_music(self, keywords, cookies, limit=10, offset=0):
+        return self.search(keywords, cookies, limit, offset)['songs']
+
     def get_playlist_detail(self, playlist_id: int, cookies: Dict[str, str]) -> Dict[str, Any]:
         """获取歌单详情
         
@@ -333,8 +334,8 @@ class NeteaseAPI:
                 'Referer': APIConstants.REFERER
             }
             
-            response = requests.post(APIConstants.PLAYLIST_DETAIL_API, data=data, 
-                                   headers=headers, cookies=cookies, timeout=30)
+            response = self.session.post(APIConstants.PLAYLIST_DETAIL_API, data=data,
+                                   headers=headers, cookies=cookies, timeout=self.timeout)
             response.raise_for_status()
             
             result = response.json()
@@ -358,8 +359,8 @@ class NeteaseAPI:
                 batch_ids = track_ids[i:i+100]
                 song_data = {'c': json.dumps([{'id': int(sid), 'v': 0} for sid in batch_ids])}
                 
-                song_resp = requests.post(APIConstants.SONG_DETAIL_V3, data=song_data, 
-                                        headers=headers, cookies=cookies, timeout=30)
+                song_resp = self.session.post(APIConstants.SONG_DETAIL_V3, data=song_data,
+                                        headers=headers, cookies=cookies, timeout=self.timeout)
                 song_resp.raise_for_status()
                 
                 song_result = song_resp.json()
@@ -398,7 +399,7 @@ class NeteaseAPI:
                 'Referer': APIConstants.REFERER
             }
             
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=30)
+            response = self.session.get(url, headers=headers, cookies=cookies, timeout=self.timeout)
             response.raise_for_status()
             
             result = response.json()

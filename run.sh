@@ -34,21 +34,11 @@ if [ ! -f "pyproject.toml" ]; then
     exit 1
 fi
 
-# 检查虚拟环境
-echo ""
-echo "检查虚拟环境..."
-if [ ! -d ".venv" ]; then
-    echo -e "${YELLOW}⚠${NC} 虚拟环境不存在，正在创建..."
-    uv sync
-    echo -e "${GREEN}✓${NC} 虚拟环境创建完成"
-else
-    echo -e "${GREEN}✓${NC} 虚拟环境已存在"
-fi
-
 # 检查Cookie文件
 echo ""
-if [ -f "cookie.txt" ]; then
-    if [ -s "cookie.txt" ]; then
+cookie_file="${NETEASE_COOKIE_FILE:-cookie.txt}"
+if [ -f "$cookie_file" ]; then
+    if [ -s "$cookie_file" ]; then
         echo -e "${GREEN}✓${NC} Cookie文件存在"
     else
         echo -e "${YELLOW}⚠${NC} Cookie文件为空，可能需要配置"
@@ -66,4 +56,4 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 
 # 使用uv run启动服务
-uv run python main.py
+exec uv run --frozen python main.py "$@"
